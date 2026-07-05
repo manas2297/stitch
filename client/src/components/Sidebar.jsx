@@ -3,13 +3,18 @@ import useAppStore from '../store/useAppStore';
 import { useToast } from './Toast';
 
 export default function Sidebar({ tabs, visibleTabs }) {
-  const { repos, activeTab, setActiveTab, toggleMajor, deleteRepo, addRepo } = useAppStore();
+  const { repos, currentUser, activeTab, setActiveTab, toggleMajor, deleteRepo, addRepo } = useAppStore();
   const toast = useToast();
   const [newRepoPath, setNewRepoPath] = useState('');
   const [adding, setAdding] = useState(false);
 
-  const localRepos = repos.filter((r) => r.type === 'local');
-  const webRepos = repos.filter((r) => r.type !== 'local');
+  // Group by owner matches the logged in user
+  const myRepos = repos.filter(
+    (r) => r.owner && currentUser && r.owner.toLowerCase() === currentUser.toLowerCase()
+  );
+  const clonedRepos = repos.filter(
+    (r) => !r.owner || !currentUser || r.owner.toLowerCase() !== currentUser.toLowerCase()
+  );
 
   const handleAddRepo = async (e) => {
     e.preventDefault();
@@ -96,30 +101,30 @@ export default function Sidebar({ tabs, visibleTabs }) {
 
       {/* Repo Widget */}
       <div className="repo-widget">
-        {/* Local Repos */}
+        {/* My Repositories */}
         <div className="repo-section-header">
-          <span className="repo-section-title">Local (💻)</span>
-          <span className="repo-section-count">{localRepos.length}</span>
+          <span className="repo-section-title">My Repositories</span>
+          <span className="repo-section-count">{myRepos.length}</span>
         </div>
         <div className="repo-widget-list" style={{ marginBottom: 14 }}>
-          {localRepos.length === 0 ? (
+          {myRepos.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', padding: '4px 0', fontStyle: 'italic' }}>
-              No local repos yet
+              No owned repositories
             </div>
-          ) : localRepos.map((r, i) => <RepoItem key={i} repo={r} />)}
+          ) : myRepos.map((r, i) => <RepoItem key={i} repo={r} />)}
         </div>
 
-        {/* Web Repos */}
+        {/* Cloned Repositories */}
         <div className="repo-section-header">
-          <span className="repo-section-title">Web (🌐)</span>
-          <span className="repo-section-count">{webRepos.length}</span>
+          <span className="repo-section-title">Cloned / Forked</span>
+          <span className="repo-section-count">{clonedRepos.length}</span>
         </div>
         <div className="repo-widget-list" style={{ marginBottom: 14 }}>
-          {webRepos.length === 0 ? (
+          {clonedRepos.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', padding: '4px 0', fontStyle: 'italic' }}>
-              No web repos yet
+              No cloned/external repos
             </div>
-          ) : webRepos.map((r, i) => <RepoItem key={i} repo={r} />)}
+          ) : clonedRepos.map((r, i) => <RepoItem key={i} repo={r} />)}
         </div>
 
         {/* Add Repo Form */}

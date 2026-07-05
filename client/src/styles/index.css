@@ -1428,4 +1428,101 @@ main {
   background: var(--border-color);
 }
 
+/* ── Contribution Calendar ───────────────────── */
+.contrib-calendar-container {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
 
+.contrib-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.contrib-calendar-grid-wrapper {
+  display: flex;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
+.contrib-days-labels {
+  display: grid;
+  grid-template-rows: repeat(7, 10px);
+  gap: 3px;
+  color: var(--text-muted);
+  justify-content: end;
+  padding-right: 4px;
+}
+
+.contrib-days-labels span {
+  font-size: 0.65rem;
+  line-height: 10px;
+}
+
+.contrib-calendar-weeks {
+  display: flex;
+  gap: 3px;
+}
+
+.contrib-calendar-week {
+  display: grid;
+  grid-template-rows: repeat(7, 10px);
+  gap: 3px;
+}
+
+.contrib-calendar-day {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.04);
+  transition: transform 0.1s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Map GitHub's light default empty color (#ebedf0) to a dark variant */
+.contrib-calendar-day[style*="background-color: rgb(235, 237, 240)"],
+.contrib-calendar-day[style*="background-color: #ebedf0"] {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+
+.contrib-calendar-day:hover {
+  transform: scale(1.3);
+  z-index: 10;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+/* Tooltip on hover */
+.contrib-calendar-day::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  background: rgba(15, 17, 26, 0.95);
+  color: var(--text-color);
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+
+.contrib-calendar-day:hover::after {
+  opacity: 1;
+  visibility: visible;
+}

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 const useAppStore = create((set, get) => ({
   // ── State ────────────────────────────────────────────
   repos: [],
+  currentUser: '',
   focusProject: '',
   activeTab: 'focus',
   activeEnergy: 'all',
@@ -17,7 +18,12 @@ const useAppStore = create((set, get) => ({
     try {
       const res = await fetch('/api/repos');
       const data = await res.json();
-      set({ repos: data.repos, focusProject: data.focusProject, isLoadingRepos: false });
+      set({ 
+        repos: data.repos, 
+        currentUser: data.currentUser || '',
+        focusProject: data.focusProject, 
+        isLoadingRepos: false 
+      });
     } catch (err) {
       console.error('Failed to load repos:', err);
       set({ isLoadingRepos: false });

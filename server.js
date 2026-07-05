@@ -71,6 +71,13 @@ app.get('/api/repos', async (req, res) => {
   const config = readConfig();
   const updatedRepos = [];
 
+  // Query authenticated username dynamically from gh CLI
+  let currentGitHubUser = '';
+  const authRes = await runCmd('gh api user --jq .login');
+  if (authRes.success && authRes.stdout) {
+    currentGitHubUser = authRes.stdout.trim();
+  }
+
   for (const repo of config.repos) {
     const isLocal = !!repo.path;
     let exists = true;
@@ -119,8 +126,13 @@ app.get('/api/repos', async (req, res) => {
     });
   }
 
-  res.json({ repos: updatedRepos, focusProject: config.focusProject || '' });
+  res.json({ 
+    repos: updatedRepos, 
+    focusProject: config.focusProject || '', 
+    currentUser: currentGitHubUser 
+  });
 });
+
 
 // Add/Update Repository
 app.post('/api/repos', async (req, res) => {
@@ -436,6 +448,153 @@ app.get('/api/releases', async (req, res) => {
 
   res.json({ releases: releaseInfo });
 });
+
+// Fetch User's Contribution Graph from GitHub GraphQL API
+app.get('/api/contributions', async (req, res) => {
+  // Resolve user dynamically
+  const userRes = await runCmd('gh api user --jq .login');
+  if (!userRes.success || !userRes.stdout) {
+    return res.status(500).json({ error: 'Failed to retrieve authenticated GitHub user.' });
+  }
+  const username = userRes.stdout.trim();
+
+  // GraphQL query to get contribution calendar
+  const query = `
+    query($login: String!) {
+      user(login: $login) {
+        contributionsCollection {
+          contributionCalendar {
+            totalContributions
+            weeks {
+              contributionDays {
+                contributionCount
+                date
+                color
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const gqlRes = await runCmd(`gh api graphql -f query='${query}' -f login='${username}'`);
+  if (!gqlRes.success) {
+    return res.status(500).json({ error: 'Failed to fetch contribution graph.', details: gqlRes.stderr });
+  }
+
+  try {
+    const data = JSON.parse(gqlRes.stdout);
+    const calendar = data.data?.user?.contributionsCollection?.contributionCalendar;
+    if (!calendar) {
+      return res.status(500).json({ error: 'Invalid GraphQL payload response.' });
+    }
+    res.json({ username, total: calendar.totalContributions, weeks: calendar.weeks });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to parse contribution graph response.', details: e.message });
+  }
+});
+
+// Fetch Local Contributions (Git Commits in past 1 year across all configured local repos)
+app.get('/api/contributions/local', async (req, res) => {
+  const config = readConfig();
+  const commitMap = {}; // { "YYYY-MM-DD": count }
+
+  // Get global git config identities to catch alternative aliases
+  let globalEmail = '';
+  let globalName = '';
+  const gEmailRes = await runCmd('git config --global user.email');
+  if (gEmailRes.success) globalEmail = gEmailRes.stdout.trim();
+  const gNameRes = await runCmd('git config --global user.name');
+  if (gNameRes.success) globalName = gNameRes.stdout.trim();
+
+  // 1. Gather all commit dates across all active local directories
+  for (const repo of config.repos) {
+    if (repo.path && fs.existsSync(repo.path)) {
+      let localEmail = '';
+      let localName = '';
+      const emailRes = await runCmd('git config user.email', repo.path);
+      if (emailRes.success) localEmail = emailRes.stdout.trim();
+      const nameRes = await runCmd('git config user.name', repo.path);
+      if (nameRes.success) localName = nameRes.stdout.trim();
+
+      // Collect all distinct identifiers associated with the user
+      const identities = new Set(
+        [globalEmail, localEmail, globalName, localName]
+          .map(i => i.trim())
+          .filter(Boolean)
+      );
+
+      // Add a fallback prefix search (e.g. 'manas') to group aliases
+      let authorPatterns = Array.from(identities);
+      if (globalName) {
+        const first = globalName.split(' ')[0].toLowerCase();
+        if (first.length > 3) authorPatterns.push(first);
+      }
+
+      // Build Git log format matching any of these author patterns
+      const authorFilters = authorPatterns.map(p => `--author="${p}"`).join(' ');
+      const cmd = `git log --all ${authorFilters} --since="1 year ago" --date=short --pretty=format:"%ad"`;
+      const logRes = await runCmd(cmd, repo.path);
+
+      if (logRes.success && logRes.stdout) {
+        const dates = logRes.stdout.split('\n').filter(Boolean);
+        dates.forEach(d => {
+          commitMap[d] = (commitMap[d] || 0) + 1;
+        });
+      }
+    }
+  }
+
+  // 2. Build a contribution calendar structure (past 52 weeks ending today)
+  const weeks = [];
+  const today = new Date();
+  
+  // Align start to 1 year ago (start from the Sunday of that week)
+  const startDate = new Date();
+  startDate.setDate(today.getDate() - 365);
+  const startDay = startDate.getDay();
+  startDate.setDate(startDate.getDate() - startDay); // roll back to Sunday
+
+  let currentDate = new Date(startDate);
+  let totalCommits = 0;
+
+  // We need 53 weeks to span 365 days correctly
+  for (let w = 0; w < 53; w++) {
+    const contributionDays = [];
+    for (let d = 0; d < 7; d++) {
+      if (currentDate > today) break;
+
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const count = commitMap[dateStr] || 0;
+      totalCommits += count;
+
+      // Color mapping
+      let color = 'rgba(255, 255, 255, 0.04)';
+      if (count > 0) {
+        if (count <= 2) color = '#0e4429';
+        else if (count <= 5) color = '#006d32';
+        else if (count <= 10) color = '#26a641';
+        else color = '#39d353';
+      }
+
+      contributionDays.push({
+        contributionCount: count,
+        date: dateStr,
+        color
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    if (contributionDays.length > 0) {
+      weeks.push({ contributionDays });
+    }
+    if (currentDate > today) break;
+  }
+
+  res.json({ total: totalCommits, weeks });
+});
+
 
 // Trigger release creation
 app.post('/api/release/create', async (req, res) => {

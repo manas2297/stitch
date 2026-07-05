@@ -29,17 +29,41 @@ export default function Overview() {
   const repos = useAppStore((s) => s.repos);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Remote GitHub graph
+  const [contributions, setContributions] = useState(null);
+  const [loadingContribs, setLoadingContribs] = useState(true);
+
+  // Local Git commit graph
+  const [localContribs, setLocalContribs] = useState(null);
+  const [loadingLocalContribs, setLoadingLocalContribs] = useState(true);
+
+  const [activeGraph, setActiveGraph] = useState('github'); // 'github' | 'local'
 
   useEffect(() => {
     fetch('/api/recents')
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
+
+    fetch('/api/contributions')
+      .then((r) => r.json())
+      .then((c) => { setContributions(c); setLoadingContribs(false); })
+      .catch(() => setLoadingContribs(false));
+
+    fetch('/api/contributions/local')
+      .then((r) => r.json())
+      .then((c) => { setLocalContribs(c); setLoadingLocalContribs(false); })
+      .catch(() => setLoadingLocalContribs(false));
   }, []);
 
   const majorRepos = repos.filter((r) => r.isMajorProject);
   const localRepos = repos.filter((r) => r.type === 'local');
   const webRepos   = repos.filter((r) => r.type !== 'local');
+
+  // Select which graph parameters to show
+  const currentGraph = activeGraph === 'github' ? contributions : localContribs;
+  const isGraphLoading = activeGraph === 'github' ? loadingContribs : loadingLocalContribs;
 
   return (
     <div className="section-content active" id="overview-section">
@@ -48,6 +72,84 @@ export default function Overview() {
           <h2>Overview</h2>
           <div className="section-desc">Your repository workspace at a glance.</div>
         </div>
+      </div>
+
+      {/* Contribution Calendar */}
+      <div className="contrib-calendar-container">
+        <div className="contrib-calendar-header">
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              🔥 Consistency & Activity
+            </h3>
+            
+            {/* Toggle tabs */}
+            <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.03)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+              <button
+                className={`inner-tab ${activeGraph === 'github' ? 'active' : ''}`}
+                style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: 6 }}
+                onClick={() => setActiveGraph('github')}
+              >
+                GitHub Graph
+              </button>
+              <button
+                className={`inner-tab ${activeGraph === 'local' ? 'active' : ''}`}
+                style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: 6 }}
+                onClick={() => setActiveGraph('local')}
+              >
+                Local Commits
+              </button>
+            </div>
+          </div>
+
+          {!isGraphLoading && currentGraph && (
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              {activeGraph === 'github' ? (
+                <><strong>{currentGraph.total}</strong> contributions on GitHub in the past year by <strong>@{currentGraph.username}</strong></>
+              ) : (
+                <><strong>{currentGraph.total}</strong> local commits in the past year across active repos</>
+              )}
+            </span>
+          )}
+        </div>
+
+        {isGraphLoading ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', height: 90 }}>
+            <div className="skeleton skeleton-line medium" style={{ height: 12 }} />
+          </div>
+        ) : currentGraph?.weeks ? (
+          <div className="contrib-calendar-grid-wrapper">
+            {/* Days labels */}
+            <div className="contrib-days-labels">
+              <span></span>
+              <span>Mon</span>
+              <span></span>
+              <span>Wed</span>
+              <span></span>
+              <span>Fri</span>
+              <span></span>
+            </div>
+
+            {/* Weeks columns */}
+            <div className="contrib-calendar-weeks">
+              {currentGraph.weeks.map((week, wIdx) => (
+                <div key={wIdx} className="contrib-calendar-week">
+                  {week.contributionDays.map((day, dIdx) => (
+                    <div
+                      key={dIdx}
+                      className="contrib-calendar-day"
+                      style={{ backgroundColor: day.color }}
+                      data-tooltip={`${day.contributionCount} ${activeGraph === 'github' ? 'contributions' : 'commits'} on ${new Date(day.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '1rem 0' }}>
+            Contribution graph unavailable. Ensure your git configs are set or GitHub CLI is authenticated.
+          </div>
+        )}
       </div>
 
       {/* Global Stats */}
