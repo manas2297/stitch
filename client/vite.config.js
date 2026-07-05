@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react()],
   root: __dirname,
   build: {
-    outDir: fileURLToPath(new URL('../dist', import.meta.url)),
+    outDir: fileURLToPath(new URL('../backend/dist', import.meta.url)),
     emptyOutDir: true,
   },
   server: {

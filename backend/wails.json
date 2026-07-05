@@ -1,8 +1,8 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "Stitch",
-  "outputdir": "build/bin",
-  "frontend:dir": "client",
+  "outputdir": "../build/bin",
+  "frontend:dir": "../client",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",

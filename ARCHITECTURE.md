@@ -12,9 +12,9 @@ Stitch runs in three modes:
 
 | Mode | How to start | What runs |
 |------|--------------|-----------|
-| **Web dev** | `npm run dev` | Air hot-reloads Go on `:4000` (`--server`); Vite serves React on `:5173` with `/api` proxied to Go |
-| **Web production** | `npm run build && npm start` | Single Go binary serves REST API + static files from `dist/` |
-| **Desktop (Wails)** | `wails dev` / `wails build` | Native window + embedded `dist/` assets; Go API still runs on `:4000` in the background |
+| **Web dev** | `npm run dev` | Air hot-reloads Go inside `/backend` on `:4000` (`--server`); Vite serves React on `:5173` with `/api` proxied to Go |
+| **Web production** | `npm run build && npm start` | Single Go binary serves REST API + static files from `backend/dist/` |
+| **Desktop (Wails)** | `wails dev` / `wails build` | Native window + embedded `backend/dist/` assets; Go API still runs on `:4000` in the background |
 
 ```mermaid
 flowchart LR
@@ -24,17 +24,17 @@ flowchart LR
     UI --> Store
   end
 
-  subgraph backend [Backend - Go]
-    Routes[main.go setupRoutes]
-    Handlers[main.go route handlers]
+  subgraph backend [Backend - Go Package]
+    Routes[backend/internal/server/routes.go]
+    Handlers[backend/internal/server/handlers.go]
     Config[config.json]
     Routes --> Handlers
     Handlers --> Config
-    Handlers --> GH[gh CLI / git]
+    Handlers --> GH[backend/internal/shell/commands.go]
   end
 
   subgraph desktop [Desktop only]
-    Wails[desktop_main.go + app.go]
+    Wails[backend/internal/desktop/desktop.go + app.go]
     Wails --> Routes
   end
 
@@ -48,52 +48,33 @@ flowchart LR
 
 ```
 stitch/
-├── main.go                 # Backend: models, config I/O, API handlers, route registration, main()
-├── app.go                  # Desktop-only Wails bindings (methods exposed to JS)
-├── desktop_main.go         # Wails window setup; embeds dist/; starts API server
-├── go.mod / go.sum         # Go module dependencies
-├── wails.json              # Wails packaging config (app name, output dir, frontend build cmd)
-├── .air.toml               # Air hot-reload config for Go during `npm run dev`
-├── package.json            # npm scripts; root-level dev orchestration
-├── config.example.json     # Template for local repo list (committed)
-├── config.json             # Your tracked repos + focus project (gitignored, local only)
+├── backend/                # ── BACKEND ──
+│   ├── main.go             # Entrypoint parsing CLI arguments and routing targets
+│   ├── wails.json          # Wails desktop packaging config
+│   ├── .air.toml           # Air hot-reload config for dev
+│   ├── go.mod / go.sum     # Go dependencies
+│   ├── dist/               # Vite build output (embedded into desktop app)
+│   └── internal/
+│       ├── config/         # config.json I/O operations
+│       ├── models/         # Shared struct types (Repo, Config)
+│       ├── shell/          # Command exec and Git/GitHub CLI wrappers
+│       ├── server/         # REST API server (routes & request handlers)
+│       └── desktop/        # Wails bootstrap configs & JS bindings (app.go)
 │
 ├── client/                 # ── FRONTEND ──
 │   ├── index.html          # Vite HTML shell
-│   ├── vite.config.js      # Vite config (outDir → ../dist, /api proxy in dev)
+│   ├── vite.config.js      # Vite config (outDir → ../backend/dist)
 │   └── src/
 │       ├── main.jsx        # React entrypoint
-│       ├── App.jsx         # Shell: header, sidebar, tab routing, energy filter
+│       ├── App.jsx         # Shell layout, tab routers & external link interceptors
 │       ├── store/
 │       │   └── useAppStore.js   # Global Zustand state + apiFetch helper
-│       ├── components/     # One file per sidebar tab / feature panel
-│       │   ├── Sidebar.jsx
-│       │   ├── Overview.jsx
-│       │   ├── Repositories.jsx
-│       │   ├── FocusWorkspace.jsx
-│       │   ├── MajorProjects.jsx
-│       │   ├── ProjectDetail.jsx
-│       │   ├── Releases.jsx
-│       │   ├── PRReviews.jsx
-│       │   ├── Issues.jsx
-│       │   ├── Builds.jsx
-│       │   ├── Profile.jsx
-│       │   ├── Roadmap.jsx
-│       │   ├── Icon.jsx         # Shared SVG icons for sidebar tabs
-│       │   └── Toast.jsx        # Toast notification provider
-│       └── styles/
-│           └── index.css   # Global styles (single CSS file today)
+│       └── components/     # UI feature views (Overview, Repositories, Profile...)
 │
-├── dist/                   # Vite build output (gitignored; embedded by Go)
-├── build/                  # Wails .app bundle output (gitignored)
-├── client/wailsjs/         # Auto-generated Wails JS bindings (gitignored)
-├── tmp/                    # Air build cache (gitignored)
+├── config.json             # Local repos database (gitignored)
+├── build/                  # Wails Stitch.app build output (gitignored)
 └── stitch-backend          # Compiled Go binary from npm run build:server (gitignored)
 ```
-
-**Do not edit:** `dist/`, `build/`, `client/wailsjs/`, `tmp/`, `config.json` (local data).
-
-**Legacy (unused):** `public/` — leftover from an earlier static HTML version; the active UI lives under `client/`.
 
 ---
 
@@ -114,7 +95,6 @@ stitch/
 | Global shared state (repos, focus, active tab) | `client/src/store/useAppStore.js` |
 | Layout / header / energy filter | `client/src/App.jsx` |
 | Global styling | `client/src/styles/index.css` |
-| Tab-specific styling | Prefer class names in the component; add rules to `index.css` if needed |
 
 ### Calling the backend
 
@@ -130,162 +110,27 @@ const res = await apiFetch('/api/issues');
 const data = await res.json();
 ```
 
-For mutations that affect repo list state, add an action to `useAppStore.js` (see `loadRepos`, `addRepo`, `toggleMajor`).
-
-### Desktop-only behavior
-
-When running inside Wails, `window.go.main.App` is available (generated into `client/wailsjs/`). Used today for:
-
-- **`OpenURL(url)`** — open GitHub links in the system browser (`App.jsx`)
-- Direct Wails method calls are optional; most features use the REST API instead
-
-Detect desktop mode the same way as `apiFetch`:
-
-```js
-const isDesktop = window.go !== undefined || import.meta.env.PROD;
-```
-
-### Component pattern
-
-Each tab component is a self-contained React module that:
-
-1. Reads shared state from `useAppStore` when needed (`repos`, `focusProject`, etc.)
-2. Fetches its own panel data in `useEffect` via `apiFetch`
-3. Renders loading/empty states inline
-
-See `client/src/components/Overview.jsx` for a typical example.
-
 ---
 
 ## Backend guide
 
-All server logic currently lives in **`main.go`** (handlers + helpers) with desktop bindings in **`app.go`**.
+All backend Go logic lives inside the `/backend` folder.
 
 ### Where to add backend code
 
 | Task | File(s) |
 |------|---------|
-| New REST endpoint | Add `handleYourFeature` in `main.go`, register in `setupRoutes()` |
-| Shared data types | `Repo`, `Config` structs at top of `main.go` |
-| Read/write local repo list | `readConfig()` / `writeConfig()` in `main.go` |
-| Shell out to `gh` or `git` | `runCmd(command, workingDir)` in `main.go` |
-| Parse git remote → owner/name | `getRepoInfoFromGit()` in `main.go` |
-| Desktop-native method (no HTTP) | Add method on `App` in `app.go`; re-run `wails dev` to regenerate `client/wailsjs/` |
-| Change API port | `main()` default `:4000` or `PORT` env var; also used by `desktop_main.go` |
-
-### API route map
-
-Routes are registered in `setupRoutes()`:
-
-| Prefix | Handlers | Purpose |
-|--------|----------|---------|
-| `/api/repos` | GET, POST, DELETE | List, add, remove tracked repos |
-| `/api/repos/toggle-major` | POST | Star/unstar major project |
-| `/api/repos/set-focus` | POST | Set active focus workspace |
-| `/api/projects/details` | GET | Major project deep-dive data |
-| `/api/roadmap`, `/api/roadmap/add` | GET, POST | GitHub issue–backed roadmap |
-| `/api/releases`, `/api/release/create` | GET, POST | Tag/release workflow |
-| `/api/focus/info`, `/api/focus/contents` | GET | Focus workspace git + file tree |
-| `/api/recents`, `/api/prs`, `/api/issues` | GET | Aggregated GitHub activity |
-| `/api/build/run` | GET (SSE) | Stream build/lint output |
-| `/api/contributions`, `/api/contributions/local` | GET | Contribution graphs |
-| `/api/profile`, `/api/profile/git` | GET, POST | Developer profile + git config |
-| `/` | GET | Serves `dist/` in production server mode |
+| New REST endpoint | Add handler in `backend/internal/server/handlers.go`, register route in `routes.go` |
+| Shared data types | Add struct type to `backend/internal/models/models.go` |
+| Read/write config.json | Add functionality to `backend/internal/config/config.go` |
+| Shell execution / commands | Implement in `backend/internal/shell/shell.go` |
+| Desktop-native bindings | Implement inside `backend/internal/desktop/app.go` (exposed to JS runtime) |
 
 ### Adding a new REST endpoint (checklist)
 
-1. **Handler** — add `func handleMyFeature(w http.ResponseWriter, r *http.Request)` in `main.go`
-2. **Register** — in `setupRoutes()`, add e.g. `mux.HandleFunc("GET /api/my-feature", wrap(handleMyFeature))`
+1. **Handler** — add `func HandleMyFeature(w http.ResponseWriter, r *http.Request)` in `backend/internal/server/handlers.go`
+2. **Register** — in `routes.go`, add e.g. `mux.HandleFunc("GET /api/my-feature", wrap(HandleMyFeature))`
 3. **Frontend** — call it from the relevant component via `apiFetch('/api/my-feature')`
-4. **Optional store action** — if the response should update global state, extend `useAppStore.js`
-
-Handler conventions in this codebase:
-
-- Use `readConfig()` / `writeConfig()` for anything stored in `config.json`
-- Use `runCmd("gh ...", dir)` or `runCmd("git ...", dir)` for external tools
-- Return JSON with `json.NewEncoder(w).Encode(...)` or `w.Write([]byte(...))`
-- Use `http.Error` for failures
-
-### Entry points
-
-```go
-// main.go
-func main() {
-    if --server flag → HTTP server on :4000 (dev + production)
-    else              → runDesktopApp() in desktop_main.go
-}
-```
-
-- **`npm run dev:server`** → Air rebuilds and runs `./tmp/main --server`
-- **`npm start`** → `./stitch-backend --server` (after build)
-- **`wails dev` / double-click Stitch.app** → `runDesktopApp()` (no `--server` flag)
-
----
-
-## Configuration
-
-`config.json` (copy from `config.example.json`) is the local database:
-
-```json
-{
-  "repos": [
-    {
-      "name": "my-app",
-      "owner": "you",
-      "path": "/absolute/path/to/clone",
-      "isMajorProject": false,
-      "buildScripts": ["npm run build", "go build"]
-    }
-  ],
-  "focusProject": "/absolute/path/to/clone"
-}
-```
-
-- **Local repos** have a `path` on disk.
-- **Web-only repos** can be tracked with `owner` + `name` and no `path`.
-- Never commit `config.json` — it contains machine-specific paths.
-
----
-
-## Build & generated artifacts
-
-| Path | Produced by | Committed? |
-|------|-------------|------------|
-| `dist/` | `npm run build:client` | No — embedded into Go binary |
-| `stitch-backend` | `npm run build:server` | No |
-| `build/bin/Stitch.app` | `wails build` | No |
-| `client/wailsjs/` | `wails dev` / `wails build` | No |
-| `tmp/` | Air during dev | No |
-
-Production web flow: `npm run build` → `npm start` → Go serves API + `dist/`.
-
-Desktop flow: `cd client && npm run build` → `wails build -s` → `build/bin/Stitch.app`.
-
----
-
-## Quick reference: common changes
-
-### “I want to change how a screen looks”
-→ Edit the matching file in `client/src/components/`, styles in `client/src/styles/index.css`.
-
-### “I want a new tab in the sidebar”
-1. `client/src/components/NewTab.jsx`
-2. Register in `App.jsx` (`TABS` + `renderSection`)
-3. Add icon in `Icon.jsx` if needed
-
-### “I want new data from GitHub / git”
-1. Add handler in `main.go` using `runCmd`
-2. Register route in `setupRoutes()`
-3. Fetch from the component with `apiFetch`
-
-### “I want shared state across tabs”
-→ Add state + actions to `client/src/store/useAppStore.js`.
-
-### “I want desktop-native behavior (open folder, system dialog)”
-→ Add a method on `App` in `app.go`, call via `window.go.main.App.YourMethod()` from the frontend.
-
-### “I want to change the desktop window (title, size, macOS chrome)”
-→ `desktop_main.go` (`options.App`, `mac.Options`).
 
 ---
 
@@ -295,14 +140,7 @@ Desktop flow: `cd client && npm run build` → `wails build -s` → `build/bin/S
 |------|------|
 | [GitHub CLI (`gh`)](https://cli.github.com/) | Auth, issues, PRs, releases, API calls — must be installed and logged in |
 | `git` | Local branch status, remotes, commits |
-| Go 1.21+ | Backend |
+| Go 1.24+ | Backend development & Wails binding |
 | Node.js | Frontend dev/build |
-| [Wails v2](https://wails.io/) | Optional desktop packaging |
+| [Wails v2](https://wails.io/) | Standalone desktop application packaging |
 | [Air](https://github.com/air-verse/air) | Go hot reload in dev (via `npm run dev:server`) |
-
----
-
-## Related docs
-
-- [README.md](./README.md) — setup, features, run commands
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — fork, PR, and dev setup

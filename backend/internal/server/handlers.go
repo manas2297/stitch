@@ -1,7 +1,6 @@
-package main
+package server
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,237 +14,22 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"stitch/internal/config"
+	"stitch/internal/models"
+	"stitch/internal/shell"
 )
 
-// ── Data Models ──────────────────────────────────────────────────────────────
-
-type Repo struct {
-	Name           string   `json:"name"`
-	Owner          string   `json:"owner"`
-	Path           string   `json:"path"`
-	IsMajorProject bool     `json:"isMajorProject"`
-	Exists         bool     `json:"exists,omitempty"`
-	Branch         string   `json:"branch,omitempty"`
-	Type           string   `json:"type,omitempty"`
-	BuildScripts   []string `json:"buildScripts,omitempty"`
-}
-
-type Config struct {
-	Repos        []Repo `json:"repos"`
-	FocusProject string `json:"focusProject"`
-}
-
-// ── Global Context ───────────────────────────────────────────────────────────
-
-var (
-	configMutex sync.RWMutex
-	configFile  = "config.json"
-)
-
-// ── Configuration Helpers ────────────────────────────────────────────────────
-
-func readConfig() Config {
-	configMutex.RLock()
-	defer configMutex.RUnlock()
-
-	var cfg Config
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		cfg.Repos = []Repo{}
-		return cfg
-	}
-
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		fmt.Printf("Error reading config: %v\n", err)
-		return Config{Repos: []Repo{}}
-	}
-
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		fmt.Printf("Error parsing config: %v\n", err)
-		return Config{Repos: []Repo{}}
-	}
-
-	if cfg.Repos == nil {
-		cfg.Repos = []Repo{}
-	}
-	return cfg
-}
-
-func writeConfig(cfg Config) bool {
-	configMutex.Lock()
-	defer configMutex.Unlock()
-
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshaling config: %v\n", err)
-		return false
-	}
-
-	if err := os.WriteFile(configFile, data, 0644); err != nil {
-		fmt.Printf("Error writing config: %v\n", err)
-		return false
-	}
-	return true
-}
-
-// ── Command Helpers ──────────────────────────────────────────────────────────
-
-type CmdResult struct {
-	Success bool
-	Stdout  string
-	Stderr  string
-	Code    int
-}
-
-func runCmd(command string, dir string) CmdResult {
-	cmd := exec.Command("sh", "-c", command)
-	if dir != "" {
-		cmd.Dir = dir
-	}
-
-	// Fetch existing environment variables
-	env := os.Environ()
-	pathVar := ""
-	pathIdx := -1
-	for i, e := range env {
-		if strings.HasPrefix(e, "PATH=") {
-			pathVar = strings.TrimPrefix(e, "PATH=")
-			pathIdx = i
-			break
-		}
-	}
-
-	// Prepend standard macOS CLI paths (/opt/homebrew/bin for Apple Silicon, /usr/local/bin for Intel)
-	macPaths := "/opt/homebrew/bin:/usr/local/bin"
-	if pathVar != "" {
-		pathVar = macPaths + ":" + pathVar
-	} else {
-		pathVar = macPaths
-	}
-
-	envEntry := "PATH=" + pathVar
-	if pathIdx >= 0 {
-		env[pathIdx] = envEntry
-	} else {
-		env = append(env, envEntry)
-	}
-	cmd.Env = env
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	code := 0
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			code = exitError.ExitCode()
-		} else {
-			code = 1
-		}
-	}
-
-	return CmdResult{
-		Success: err == nil,
-		Stdout:  strings.TrimSpace(stdout.String()),
-		Stderr:  strings.TrimSpace(stderr.String()),
-		Code:    code,
-	}
-}
-
-func getRepoInfoFromGit(repoPath string) (string, string) {
-	res := runCmd("git remote get-url origin", repoPath)
-	if res.Success {
-		url := res.Stdout
-		// Matches: github.com:owner/repo.git or github.com/owner/repo.git or https://...
-		re := regexp.MustCompile(`github\.com[:/]([^/]+)\/([^.]+)(?:\.git)?`)
-		match := re.FindStringSubmatch(url)
-		if len(match) >= 3 {
-			return match[1], match[2]
-		}
-	}
-	return "", filepath.Base(repoPath)
-}
-
-// ── API Router Multiplexing ──────────────────────────────────────────────────
-
-func setupRoutes() http.Handler {
-	mux := http.NewServeMux()
-
-	// CORS and JSON header utility wrapper
-	wrap := func(h http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			h(w, r)
-		}
-	}
-
-	// 1. Repos (GET, POST, DELETE)
-	mux.HandleFunc("GET /api/repos", wrap(handleGetRepos))
-	mux.HandleFunc("POST /api/repos", wrap(handlePostRepos))
-	mux.HandleFunc("DELETE /api/repos", wrap(handleDeleteRepos))
-	mux.HandleFunc("POST /api/repos/toggle-major", wrap(handleToggleMajor))
-	mux.HandleFunc("POST /api/repos/set-focus", wrap(handleSetFocus))
-
-	// 2. Details, Roadmap, Releases
-	mux.HandleFunc("GET /api/projects/details", wrap(handleProjectDetails))
-	mux.HandleFunc("GET /api/roadmap", wrap(handleGetRoadmap))
-	mux.HandleFunc("POST /api/roadmap/add", wrap(handlePostRoadmapAdd))
-	mux.HandleFunc("GET /api/releases", wrap(handleGetReleases))
-	mux.HandleFunc("POST /api/release/create", wrap(handlePostReleaseCreate))
-
-	// 3. Focus Area
-	mux.HandleFunc("GET /api/focus/info", wrap(handleFocusInfo))
-	mux.HandleFunc("GET /api/focus/contents", wrap(handleFocusContents))
-
-	// 4. PRs, Issues, Recents
-	mux.HandleFunc("GET /api/recents", wrap(handleGetRecents))
-	mux.HandleFunc("GET /api/prs", wrap(handleGetPrs))
-	mux.HandleFunc("GET /api/issues", wrap(handleGetIssues))
-
-	// 5. Builds & Tasks (SSE)
-	mux.HandleFunc("GET /api/build/run", wrap(handleBuildRun))
-
-	// 6. Contributions (GitHub and Local Commits)
-	mux.HandleFunc("GET /api/contributions", wrap(handleGetGitHubContributions))
-	mux.HandleFunc("GET /api/contributions/local", wrap(handleGetLocalContributions))
-
-	// 7. Profile & Settings
-	mux.HandleFunc("GET /api/profile", wrap(handleGetProfile))
-	mux.HandleFunc("POST /api/profile/git", wrap(handlePostProfileGit))
-
-	// Static client file hosting (Vite build target)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Serve index.html if file doesn't exist
-		path := filepath.Join("dist", r.URL.Path)
-		if fi, err := os.Stat(path); err != nil || fi.IsDir() {
-			http.ServeFile(w, r, filepath.Join("dist", "index.html"))
-			return
-		}
-		http.FileServer(http.Dir("dist")).ServeHTTP(w, r)
-	})
-
-	return mux
-}
-
-// ── Route Handlers ───────────────────────────────────────────────────────────
-
-func handleGetRepos(w http.ResponseWriter, r *http.Request) {
-	cfg := readConfig()
+func HandleGetRepos(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Read()
 	var currentGitHubUser string
 
-	authRes := runCmd("gh api user --jq .login", "")
+	authRes := shell.RunCmd("gh api user --jq .login", "")
 	if authRes.Success {
 		currentGitHubUser = strings.TrimSpace(authRes.Stdout)
 	}
 
-	updatedRepos := []Repo{}
+	updatedRepos := []models.Repo{}
 	for _, repo := range cfg.Repos {
 		isLocal := repo.Path != ""
 		exists := true
@@ -259,12 +43,12 @@ func handleGetRepos(w http.ResponseWriter, r *http.Request) {
 			if _, err := os.Stat(absPath); os.IsNotExist(err) {
 				exists = false
 			} else {
-				branchRes := runCmd("git branch --show-current", absPath)
+				branchRes := shell.RunCmd("git branch --show-current", absPath)
 				if branchRes.Success {
 					branch = branchRes.Stdout
 				}
 				if owner == "" {
-					owner, name = getRepoInfoFromGit(absPath)
+					owner, name = shell.GetRepoInfoFromGit(absPath)
 				}
 				pkgPath := filepath.Join(absPath, "package.json")
 				if _, err := os.Stat(pkgPath); err == nil {
@@ -287,7 +71,7 @@ func handleGetRepos(w http.ResponseWriter, r *http.Request) {
 			repType = "local"
 		}
 
-		updatedRepos = append(updatedRepos, Repo{
+		updatedRepos = append(updatedRepos, models.Repo{
 			Name:           name,
 			Owner:          owner,
 			Path:           repo.Path,
@@ -307,7 +91,7 @@ func handleGetRepos(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handlePostRepos(w http.ResponseWriter, r *http.Request) {
+func HandlePostRepos(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Path           string `json:"path"`
 		Owner          string `json:"owner"`
@@ -319,8 +103,8 @@ func handlePostRepos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := readConfig()
-	var repoData Repo
+	cfg := config.Read()
+	var repoData models.Repo
 
 	isWebFormat := strings.Contains(body.Path, "/") &&
 		!strings.HasPrefix(body.Path, "/") &&
@@ -343,7 +127,7 @@ func handlePostRepos(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		repoData = Repo{
+		repoData = models.Repo{
 			Name:           wName,
 			Owner:          wOwner,
 			Path:           "",
@@ -375,10 +159,10 @@ func handlePostRepos(w http.ResponseWriter, r *http.Request) {
 
 		dOwner, dName := body.Owner, body.Name
 		if dOwner == "" || dName == "" {
-			dOwner, dName = getRepoInfoFromGit(absPath)
+			dOwner, dName = shell.GetRepoInfoFromGit(absPath)
 		}
 
-		repoData = Repo{
+		repoData = models.Repo{
 			Name:           dName,
 			Owner:          dOwner,
 			Path:           absPath,
@@ -392,7 +176,7 @@ func handlePostRepos(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if writeConfig(cfg) {
+	if config.Write(cfg) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "repo": repoData})
 	} else {
@@ -400,7 +184,7 @@ func handlePostRepos(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleDeleteRepos(w http.ResponseWriter, r *http.Request) {
+func HandleDeleteRepos(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Path  string `json:"path"`
 		Owner string `json:"owner"`
@@ -411,8 +195,8 @@ func handleDeleteRepos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := readConfig()
-	filtered := []Repo{}
+	cfg := config.Read()
+	filtered := []models.Repo{}
 	found := false
 
 	if body.Path != "" {
@@ -450,7 +234,7 @@ func handleDeleteRepos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg.Repos = filtered
-	if writeConfig(cfg) {
+	if config.Write(cfg) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"success":true}`))
 	} else {
@@ -458,7 +242,7 @@ func handleDeleteRepos(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleToggleMajor(w http.ResponseWriter, r *http.Request) {
+func HandleToggleMajor(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Path  string `json:"path"`
 		Owner string `json:"owner"`
@@ -469,7 +253,7 @@ func handleToggleMajor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := readConfig()
+	cfg := config.Read()
 	index := -1
 
 	if body.Path != "" {
@@ -498,13 +282,13 @@ func handleToggleMajor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg.Repos[index].IsMajorProject = !cfg.Repos[index].IsMajorProject
-	writeConfig(cfg)
+	config.Write(cfg)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "repo": cfg.Repos[index]})
 }
 
-func handleSetFocus(w http.ResponseWriter, r *http.Request) {
+func HandleSetFocus(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Path  string `json:"path"`
 		Owner string `json:"owner"`
@@ -515,7 +299,7 @@ func handleSetFocus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := readConfig()
+	cfg := config.Read()
 	if body.Path != "" {
 		absPath, _ := filepath.Abs(body.Path)
 		cfg.FocusProject = absPath
@@ -525,12 +309,12 @@ func handleSetFocus(w http.ResponseWriter, r *http.Request) {
 		cfg.FocusProject = ""
 	}
 
-	writeConfig(cfg)
+	config.Write(cfg)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "focusProject": cfg.FocusProject})
 }
 
-func handleProjectDetails(w http.ResponseWriter, r *http.Request) {
+func HandleProjectDetails(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	name := r.URL.Query().Get("name")
 	if owner == "" || name == "" {
@@ -538,9 +322,9 @@ func handleProjectDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issuesRes := runCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --json number,title,author,url,createdAt,labels --limit 50`, owner, name), "")
-	prsRes := runCmd(fmt.Sprintf(`gh pr list --repo "%s/%s" --json number,title,author,url,createdAt,reviewRequests,reviewDecision --limit 30`, owner, name), "")
-	tagRes := runCmd(fmt.Sprintf(`gh api repos/%s/%s/releases/latest --jq .tag_name`, owner, name), "")
+	issuesRes := shell.RunCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --json number,title,author,url,createdAt,labels --limit 50`, owner, name), "")
+	prsRes := shell.RunCmd(fmt.Sprintf(`gh pr list --repo "%s/%s" --json number,title,author,url,createdAt,reviewRequests,reviewDecision --limit 30`, owner, name), "")
+	tagRes := shell.RunCmd(fmt.Sprintf(`gh api repos/%s/%s/releases/latest --jq .tag_name`, owner, name), "")
 
 	var rawIssues []map[string]interface{}
 	if issuesRes.Success {
@@ -608,7 +392,7 @@ func handleProjectDetails(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleGetRoadmap(w http.ResponseWriter, r *http.Request) {
+func HandleGetRoadmap(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	name := r.URL.Query().Get("name")
 	if owner == "" || name == "" {
@@ -616,7 +400,7 @@ func handleGetRoadmap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := runCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --label "roadmap" --json number,title,body --limit 1`, owner, name), "")
+	result := shell.RunCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --label "roadmap" --json number,title,body --limit 1`, owner, name), "")
 	w.Header().Set("Content-Type", "application/json")
 
 	if !result.Success || result.Stdout == "" || result.Stdout == "[]" {
@@ -657,7 +441,7 @@ func handleGetRoadmap(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
+func HandlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Owner string `json:"owner"`
 		Name  string `json:"name"`
@@ -668,7 +452,7 @@ func handlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	listRes := runCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --label "roadmap" --json number,body --limit 1`, body.Owner, body.Name), "")
+	listRes := shell.RunCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --label "roadmap" --json number,body --limit 1`, body.Owner, body.Name), "")
 	issueNumber := 0
 	currentBody := "## 🗺️ Project Roadmap\n\n"
 
@@ -687,7 +471,7 @@ func handlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if issueNumber > 0 {
-		editRes := runCmd(fmt.Sprintf(`gh issue edit %d --repo "%s/%s" --body %s`, issueNumber, body.Owner, body.Name, strconv.Quote(newBody)), "")
+		editRes := shell.RunCmd(fmt.Sprintf(`gh issue edit %d --repo "%s/%s" --body %s`, issueNumber, body.Owner, body.Name, strconv.Quote(newBody)), "")
 		if !editRes.Success {
 			http.Error(w, fmt.Sprintf(`{"error":"Failed to update roadmap issue.","details":"%s"}`, strings.ReplaceAll(editRes.Stderr, `"`, `\"`)), http.StatusInternalServerError)
 			return
@@ -695,7 +479,7 @@ func handlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "issueNumber": issueNumber, "message": "Task appended to roadmap issue."})
 	} else {
 		// Ensure roadmap label exists
-		labelCheck := runCmd(fmt.Sprintf(`gh label list --repo "%s/%s" --json name`, body.Owner, body.Name), "")
+		labelCheck := shell.RunCmd(fmt.Sprintf(`gh label list --repo "%s/%s" --json name`, body.Owner, body.Name), "")
 		labelExists := false
 		if labelCheck.Success && labelCheck.Stdout != "" {
 			var labels []struct {
@@ -712,10 +496,10 @@ func handlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !labelExists {
-			runCmd(fmt.Sprintf(`gh label create "roadmap" --repo "%s/%s" --description "Project roadmap tracking" --color "0075ca"`, body.Owner, body.Name), "")
+			shell.RunCmd(fmt.Sprintf(`gh label create "roadmap" --repo "%s/%s" --description "Project roadmap tracking" --color "0075ca"`, body.Owner, body.Name), "")
 		}
 
-		createRes := runCmd(fmt.Sprintf(`gh issue create --repo "%s/%s" --title "Project Roadmap" --body %s --label "roadmap"`, body.Owner, body.Name, strconv.Quote(newBody)), "")
+		createRes := shell.RunCmd(fmt.Sprintf(`gh issue create --repo "%s/%s" --title "Project Roadmap" --body %s --label "roadmap"`, body.Owner, body.Name, strconv.Quote(newBody)), "")
 		if !createRes.Success {
 			http.Error(w, fmt.Sprintf(`{"error":"Failed to create roadmap issue.","details":"%s"}`, strings.ReplaceAll(createRes.Stderr, `"`, `\"`)), http.StatusInternalServerError)
 			return
@@ -724,8 +508,8 @@ func handlePostRoadmapAdd(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleGetReleases(w http.ResponseWriter, r *http.Request) {
-	cfg := readConfig()
+func HandleGetReleases(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Read()
 	releaseInfo := []map[string]interface{}{}
 
 	for _, repo := range cfg.Repos {
@@ -740,16 +524,16 @@ func handleGetReleases(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			tagResult := runCmd("git describe --tags --abbrev=0", absPath)
+			tagResult := shell.RunCmd("git describe --tags --abbrev=0", absPath)
 			if tagResult.Success {
 				lastTag = tagResult.Stdout
-				logResult := runCmd(fmt.Sprintf(`git log %s..HEAD --oneline`, lastTag), absPath)
+				logResult := shell.RunCmd(fmt.Sprintf(`git log %s..HEAD --oneline`, lastTag), absPath)
 				if logResult.Success && logResult.Stdout != "" {
 					commitsSince = strings.Split(logResult.Stdout, "\n")
 					requiresRelease = len(commitsSince) > 0
 				}
 			} else {
-				logResult := runCmd("git log -n 20 --oneline", absPath)
+				logResult := shell.RunCmd("git log -n 20 --oneline", absPath)
 				if logResult.Success && logResult.Stdout != "" {
 					commitsSince = strings.Split(logResult.Stdout, "\n")
 					requiresRelease = len(commitsSince) > 0
@@ -757,17 +541,17 @@ func handleGetReleases(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			if repo.Owner != "" && repo.Name != "" {
-				tagResult := runCmd(fmt.Sprintf(`gh api repos/%s/%s/releases/latest --jq .tag_name`, repo.Owner, repo.Name), "")
+				tagResult := shell.RunCmd(fmt.Sprintf(`gh api repos/%s/%s/releases/latest --jq .tag_name`, repo.Owner, repo.Name), "")
 				if tagResult.Success && tagResult.Stdout != "" {
 					lastTag = tagResult.Stdout
-					commitsResult := runCmd(fmt.Sprintf(`gh api repos/%s/%s/commits --limit 10 --jq ".[].commit.message"`, repo.Owner, repo.Name), "")
+					commitsResult := shell.RunCmd(fmt.Sprintf(`gh api repos/%s/%s/commits --limit 10 --jq ".[].commit.message"`, repo.Owner, repo.Name), "")
 					if commitsResult.Success && commitsResult.Stdout != "" {
 						commitsSince = strings.Split(commitsResult.Stdout, "\n")
 						requiresRelease = true
 					}
 				} else {
 					lastTag = "No release tags"
-					commitsResult := runCmd(fmt.Sprintf(`gh api repos/%s/%s/commits --limit 10 --jq ".[].commit.message"`, repo.Owner, repo.Name), "")
+					commitsResult := shell.RunCmd(fmt.Sprintf(`gh api repos/%s/%s/commits --limit 10 --jq ".[].commit.message"`, repo.Owner, repo.Name), "")
 					if commitsResult.Success && commitsResult.Stdout != "" {
 						commitsSince = strings.Split(commitsResult.Stdout, "\n")
 						requiresRelease = len(commitsSince) > 0
@@ -804,14 +588,14 @@ func handleGetReleases(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"releases": releaseInfo})
 }
 
-func handleFocusInfo(w http.ResponseWriter, r *http.Request) {
-	cfg := readConfig()
+func HandleFocusInfo(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Read()
 	if cfg.FocusProject == "" {
 		w.Write([]byte(`{"active":false}`))
 		return
 	}
 
-	var activeRepo *Repo
+	var activeRepo *models.Repo
 	for _, repo := range cfg.Repos {
 		if repo.Path != "" {
 			rAbs, _ := filepath.Abs(repo.Path)
@@ -845,14 +629,14 @@ func handleFocusInfo(w http.ResponseWriter, r *http.Request) {
 		if _, err := os.Stat(absPath); os.IsNotExist(err) {
 			exists = false
 		} else {
-			branchRes := runCmd("git branch --show-current", absPath)
+			branchRes := shell.RunCmd("git branch --show-current", absPath)
 			if branchRes.Success {
 				gitBranch = branchRes.Stdout
 			}
 			if owner == "" {
-				owner, name = getRepoInfoFromGit(absPath)
+				owner, name = shell.GetRepoInfoFromGit(absPath)
 			}
-			statusRes := runCmd("git status --short", absPath)
+			statusRes := shell.RunCmd("git status --short", absPath)
 			if statusRes.Success && statusRes.Stdout != "" {
 				statusSummary = strings.Split(statusRes.Stdout, "\n")
 			}
@@ -863,11 +647,11 @@ func handleFocusInfo(w http.ResponseWriter, r *http.Request) {
 	var prs []interface{}
 
 	if owner != "" && name != "" {
-		issuesRes := runCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --json number,title,author,url,createdAt,labels --limit 30`, owner, name), "")
+		issuesRes := shell.RunCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --json number,title,author,url,createdAt,labels --limit 30`, owner, name), "")
 		if issuesRes.Success {
 			json.Unmarshal([]byte(issuesRes.Stdout), &issues)
 		}
-		prsRes := runCmd(fmt.Sprintf(`gh pr list --repo "%s/%s" --json number,title,author,url,createdAt,reviewRequests --limit 30`, owner, name), "")
+		prsRes := shell.RunCmd(fmt.Sprintf(`gh pr list --repo "%s/%s" --json number,title,author,url,createdAt,reviewRequests --limit 30`, owner, name), "")
 		if prsRes.Success {
 			json.Unmarshal([]byte(prsRes.Stdout), &prs)
 		}
@@ -885,7 +669,7 @@ func handleFocusInfo(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleFocusContents(w http.ResponseWriter, r *http.Request) {
+func HandleFocusContents(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	name := r.URL.Query().Get("name")
 	filePath := r.URL.Query().Get("path")
@@ -895,7 +679,7 @@ func handleFocusContents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := fmt.Sprintf(`gh api repos/%s/%s/contents/%s`, owner, name, urlPathEncode(filePath))
-	result := runCmd(cmd, "")
+	result := shell.RunCmd(cmd, "")
 
 	w.Header().Set("Content-Type", "application/json")
 	if result.Success {
@@ -920,7 +704,7 @@ func handleFocusContents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handlePostReleaseCreate(w http.ResponseWriter, r *http.Request) {
+func HandlePostReleaseCreate(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Path  string `json:"path"`
 		Owner string `json:"owner"`
@@ -936,24 +720,24 @@ func handlePostReleaseCreate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if body.Path != "" {
 		absPath, _ := filepath.Abs(body.Path)
-		hasGh := runCmd("which gh", absPath)
+		hasGh := shell.RunCmd("which gh", absPath)
 		if hasGh.Success {
-			ghRelease := runCmd(fmt.Sprintf(`gh release create %s --title "%s" --notes "%s"`, body.Tag, body.Tag, body.Notes), absPath)
+			ghRelease := shell.RunCmd(fmt.Sprintf(`gh release create %s --title "%s" --notes "%s"`, body.Tag, body.Tag, body.Notes), absPath)
 			if ghRelease.Success {
 				json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "Release created successfully via GitHub CLI."})
 				return
 			}
 		}
 
-		tagCmd := runCmd(fmt.Sprintf(`git tag -a %s -m "%s"`, body.Tag, body.Notes), absPath)
+		tagCmd := shell.RunCmd(fmt.Sprintf(`git tag -a %s -m "%s"`, body.Tag, body.Notes), absPath)
 		if !tagCmd.Success {
 			http.Error(w, `{"error":"Failed to create tag"}`, http.StatusInternalServerError)
 			return
 		}
-		pushCmd := runCmd(fmt.Sprintf(`git push origin %s`, body.Tag), absPath)
+		pushCmd := shell.RunCmd(fmt.Sprintf(`git push origin %s`, body.Tag), absPath)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": pushCmd.Success, "message": "Tag created and pushed."})
 	} else if body.Owner != "" && body.Name != "" {
-		ghRelease := runCmd(fmt.Sprintf(`gh release create %s --repo "%s/%s" --title "%s" --notes "%s"`, body.Tag, body.Owner, body.Name, body.Tag, body.Notes), "")
+		ghRelease := shell.RunCmd(fmt.Sprintf(`gh release create %s --repo "%s/%s" --title "%s" --notes "%s"`, body.Tag, body.Owner, body.Name, body.Tag, body.Notes), "")
 		if ghRelease.Success {
 			json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "Remote release created successfully via GitHub CLI."})
 		} else {
@@ -964,7 +748,7 @@ func handlePostReleaseCreate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleGetRecents(w http.ResponseWriter, r *http.Request) {
+func HandleGetRecents(w http.ResponseWriter, r *http.Request) {
 	prsCmd := `gh search prs --review-requested=@me --state=open --limit=10 --json number,title,repository,url,createdAt,author`
 	fallbackPrsCmd := `gh search prs --author=@me --state=open --limit=10 --json number,title,repository,url,createdAt,author`
 	issuesCmd := `gh search issues --assignee=@me --state=open --limit=10 --json number,title,repository,url,createdAt,labels,state`
@@ -973,17 +757,17 @@ func handleGetRecents(w http.ResponseWriter, r *http.Request) {
 	var prs []interface{}
 	var issues []interface{}
 
-	prResult := runCmd(prsCmd, "")
+	prResult := shell.RunCmd(prsCmd, "")
 	if !prResult.Success || prResult.Stdout == "" || prResult.Stdout == "[]" {
-		prResult = runCmd(fallbackPrsCmd, "")
+		prResult = shell.RunCmd(fallbackPrsCmd, "")
 	}
 	if prResult.Success && prResult.Stdout != "" {
 		json.Unmarshal([]byte(prResult.Stdout), &prs)
 	}
 
-	issueResult := runCmd(issuesCmd, "")
+	issueResult := shell.RunCmd(issuesCmd, "")
 	if !issueResult.Success || issueResult.Stdout == "" || issueResult.Stdout == "[]" {
-		issueResult = runCmd(fallbackIssuesCmd, "")
+		issueResult = shell.RunCmd(fallbackIssuesCmd, "")
 	}
 	if issueResult.Success && issueResult.Stdout != "" {
 		json.Unmarshal([]byte(issueResult.Stdout), &issues)
@@ -993,7 +777,7 @@ func handleGetRecents(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"prs": prs, "issues": issues})
 }
 
-func handleGetPrs(w http.ResponseWriter, r *http.Request) {
+func HandleGetPrs(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	name := r.URL.Query().Get("name")
 	if owner == "" || name == "" {
@@ -1002,7 +786,7 @@ func handleGetPrs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := fmt.Sprintf(`gh pr list --repo "%s/%s" --json number,title,author,url,createdAt,reviewRequests,reviewDecision,mergeable --limit 30`, owner, name)
-	result := runCmd(cmd, "")
+	result := shell.RunCmd(cmd, "")
 
 	w.Header().Set("Content-Type", "application/json")
 	if result.Success {
@@ -1017,7 +801,7 @@ func handleGetPrs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleGetIssues(w http.ResponseWriter, r *http.Request) {
+func HandleGetIssues(w http.ResponseWriter, r *http.Request) {
 	owner := r.URL.Query().Get("owner")
 	name := r.URL.Query().Get("name")
 	if owner == "" || name == "" {
@@ -1026,7 +810,7 @@ func handleGetIssues(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := fmt.Sprintf(`gh issue list --repo "%s/%s" --json number,title,author,url,createdAt,labels,state --limit 30`, owner, name)
-	result := runCmd(cmd, "")
+	result := shell.RunCmd(cmd, "")
 
 	w.Header().Set("Content-Type", "application/json")
 	if result.Success {
@@ -1041,8 +825,8 @@ func handleGetIssues(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleGetGitHubContributions(w http.ResponseWriter, r *http.Request) {
-	userRes := runCmd("gh api user --jq .login", "")
+func HandleGetGitHubContributions(w http.ResponseWriter, r *http.Request) {
+	userRes := shell.RunCmd("gh api user --jq .login", "")
 	if !userRes.Success || userRes.Stdout == "" {
 		http.Error(w, `{"error":"Failed to retrieve authenticated GitHub user."}`, http.StatusInternalServerError)
 		return
@@ -1067,7 +851,7 @@ func handleGetGitHubContributions(w http.ResponseWriter, r *http.Request) {
 	}`
 
 	cleanGql := strings.ReplaceAll(strings.ReplaceAll(query, "\n", " "), "\t", " ")
-	gqlRes := runCmd(fmt.Sprintf(`gh api graphql -f query='%s' -f login='%s'`, cleanGql, username), "")
+	gqlRes := shell.RunCmd(fmt.Sprintf(`gh api graphql -f query='%s' -f login='%s'`, cleanGql, username), "")
 	if !gqlRes.Success {
 		http.Error(w, `{"error":"Failed to fetch contribution graph."}`, http.StatusInternalServerError)
 		return
@@ -1106,16 +890,16 @@ func handleGetGitHubContributions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
-	cfg := readConfig()
+func HandleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Read()
 	commitMap := map[string]int{}
 
 	globalEmail := ""
 	globalName := ""
-	if emailRes := runCmd("git config --global user.email", ""); emailRes.Success {
+	if emailRes := shell.RunCmd("git config --global user.email", ""); emailRes.Success {
 		globalEmail = strings.TrimSpace(emailRes.Stdout)
 	}
-	if nameRes := runCmd("git config --global user.name", ""); nameRes.Success {
+	if nameRes := shell.RunCmd("git config --global user.name", ""); nameRes.Success {
 		globalName = strings.TrimSpace(nameRes.Stdout)
 	}
 
@@ -1125,10 +909,10 @@ func handleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
 			if _, err := os.Stat(absPath); err == nil {
 				localEmail := ""
 				localName := ""
-				if eRes := runCmd("git config user.email", absPath); eRes.Success {
+				if eRes := shell.RunCmd("git config user.email", absPath); eRes.Success {
 					localEmail = strings.TrimSpace(eRes.Stdout)
 				}
-				if nRes := runCmd("git config user.name", absPath); nRes.Success {
+				if nRes := shell.RunCmd("git config user.name", absPath); nRes.Success {
 					localName = strings.TrimSpace(nRes.Stdout)
 				}
 
@@ -1156,7 +940,7 @@ func handleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
 				}
 
 				cmd := fmt.Sprintf(`git log --all %s --since="1 year ago" --date=short --pretty=format:"%%ad"`, authorFilters)
-				logRes := runCmd(cmd, absPath)
+				logRes := shell.RunCmd(cmd, absPath)
 
 				if logRes.Success && logRes.Stdout != "" {
 					dates := strings.Split(logRes.Stdout, "\n")
@@ -1230,7 +1014,7 @@ func handleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
 
 // ── SSE Logs Broadcaster (Build Command Execution) ───────────────────────────
 
-func handleBuildRun(w http.ResponseWriter, r *http.Request) {
+func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
 	repoPath := r.URL.Query().Get("path")
 	script := r.URL.Query().Get("script")
 	if repoPath == "" {
@@ -1364,13 +1148,13 @@ func urlPathEncode(str string) string {
 	return strings.Join(parts, "/")
 }
 
-func handleGetProfile(w http.ResponseWriter, r *http.Request) {
+func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 	// 1. Fetch GitHub CLI User info
 	var githubUser string
 	var githubAvatar string
 	var githubEmail string
 
-	userRes := runCmd("gh api user --jq '{login: .login, avatar: .avatar_url, email: .email}'", "")
+	userRes := shell.RunCmd("gh api user --jq '{login: .login, avatar: .avatar_url, email: .email}'", "")
 	if userRes.Success && userRes.Stdout != "" {
 		var u struct {
 			Login  string `json:"login"`
@@ -1387,20 +1171,20 @@ func handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	// 2. Fetch Global Git Identity
 	var gitName string
 	var gitEmail string
-	if res := runCmd("git config --global user.name", ""); res.Success {
+	if res := shell.RunCmd("git config --global user.name", ""); res.Success {
 		gitName = res.Stdout
 	}
-	if res := runCmd("git config --global user.email", ""); res.Success {
+	if res := shell.RunCmd("git config --global user.email", ""); res.Success {
 		gitEmail = res.Stdout
 	}
 
 	// 3. Fetch CLI Diagnostic Data
 	var gitVer string
 	var ghVer string
-	if res := runCmd("git version", ""); res.Success {
+	if res := shell.RunCmd("git version", ""); res.Success {
 		gitVer = res.Stdout
 	}
-	if res := runCmd("gh --version | head -1", ""); res.Success {
+	if res := shell.RunCmd("gh --version | head -1", ""); res.Success {
 		ghVer = res.Stdout
 	}
 
@@ -1415,32 +1199,32 @@ func handleGetProfile(w http.ResponseWriter, r *http.Request) {
 		"redis":   "Not Installed",
 	}
 
-	if res := runCmd("go version", ""); res.Success {
+	if res := shell.RunCmd("go version", ""); res.Success {
 		runtimes["go"] = strings.TrimSpace(res.Stdout)
 	}
-	if res := runCmd("node --version", ""); res.Success {
+	if res := shell.RunCmd("node --version", ""); res.Success {
 		runtimes["node"] = strings.TrimSpace(res.Stdout)
 	}
-	if res := runCmd("npm --version", ""); res.Success {
+	if res := shell.RunCmd("npm --version", ""); res.Success {
 		runtimes["npm"] = strings.TrimSpace(res.Stdout)
 	}
 	// Try python3 first, fallback to python
-	if res := runCmd("python3 --version", ""); res.Success {
+	if res := shell.RunCmd("python3 --version", ""); res.Success {
 		runtimes["python"] = strings.TrimSpace(res.Stdout)
-	} else if res := runCmd("python --version", ""); res.Success {
+	} else if res := shell.RunCmd("python --version", ""); res.Success {
 		runtimes["python"] = strings.TrimSpace(res.Stdout)
 	}
-	if res := runCmd("postgres --version", ""); res.Success {
+	if res := shell.RunCmd("postgres --version", ""); res.Success {
 		runtimes["postgres"] = strings.TrimSpace(res.Stdout)
-	} else if res := runCmd("pg_config --version", ""); res.Success {
+	} else if res := shell.RunCmd("pg_config --version", ""); res.Success {
 		runtimes["postgres"] = strings.TrimSpace(res.Stdout)
 	}
-	if res := runCmd("mongod --version | head -1", ""); res.Success {
+	if res := shell.RunCmd("mongod --version | head -1", ""); res.Success {
 		runtimes["mongo"] = strings.TrimSpace(res.Stdout)
-	} else if res := runCmd("mongo --version | head -1", ""); res.Success {
+	} else if res := shell.RunCmd("mongo --version | head -1", ""); res.Success {
 		runtimes["mongo"] = strings.TrimSpace(res.Stdout)
 	}
-	if res := runCmd("redis-server --version", ""); res.Success {
+	if res := shell.RunCmd("redis-server --version", ""); res.Success {
 		// Output: Redis server v=7.2.4 sha=00000000:0 ... -> Clean up output
 		parts := strings.Split(res.Stdout, " ")
 		if len(parts) >= 3 {
@@ -1471,7 +1255,7 @@ func handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handlePostProfileGit(w http.ResponseWriter, r *http.Request) {
+func HandlePostProfileGit(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -1483,14 +1267,14 @@ func handlePostProfileGit(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if body.Name != "" {
-		res := runCmd(fmt.Sprintf(`git config --global user.name "%s"`, body.Name), "")
+		res := shell.RunCmd(fmt.Sprintf(`git config --global user.name "%s"`, body.Name), "")
 		if !res.Success {
 			http.Error(w, `{"error":"Failed to set global Git user.name."}`, http.StatusInternalServerError)
 			return
 		}
 	}
 	if body.Email != "" {
-		res := runCmd(fmt.Sprintf(`git config --global user.email "%s"`, body.Email), "")
+		res := shell.RunCmd(fmt.Sprintf(`git config --global user.email "%s"`, body.Email), "")
 		if !res.Success {
 			http.Error(w, `{"error":"Failed to set global Git user.email."}`, http.StatusInternalServerError)
 			return
@@ -1500,35 +1284,3 @@ func handlePostProfileGit(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"success":true,"message":"Global Git identity configured successfully."}`))
 }
 
-// ── Entry Main ───────────────────────────────────────────────────────────────
-
-func main() {
-	// Check if --server argument is provided to run as a headless web API server (used by 'dev' and Air)
-	runAsServer := false
-	for _, arg := range os.Args {
-		if arg == "--server" {
-			runAsServer = true
-			break
-		}
-	}
-
-	if !runAsServer {
-		runDesktopApp()
-		return
-	}
-
-	port := "4000"
-	if envPort := os.Getenv("PORT"); envPort != "" {
-		port = envPort
-	}
-
-	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: setupRoutes(),
-	}
-
-	fmt.Printf("Stitch GitHub Manager Server running in Go on http://localhost:%s\n", port)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Printf("Server failed: %v\n", err)
-	}
-}

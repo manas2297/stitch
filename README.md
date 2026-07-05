@@ -6,7 +6,21 @@ It aggregates issues, PR reviews, tag releases, and build states into a single w
 
 ---
 
-See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for the full folder layout, frontend vs backend boundaries, API route map, and where to add new code.
+## Architecture
+
+```
+stitch/
+  backend/                  ← Go backend module (REST API + Wails desktop GUI)
+    main.go                 ← Entrypoint routing server/desktop targets
+    internal/
+      desktop/              ← Wails app setup & browser runtime bindings
+      server/               ← REST API server endpoints & Git logic
+  config.json               ← Local database of tracked repos (gitignored)
+  client/                   ← Vite + React frontend app
+    src/
+      store/useAppStore.js  ← Zustand global state + apiFetch routing wrapper
+      components/           ← Tab panels & UI elements (Overview, Repositories, Profile...)
+```
 
 ## Features
 

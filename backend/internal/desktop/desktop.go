@@ -1,8 +1,10 @@
-package main
+package desktop
 
 import (
-	"embed"
+	"io/fs"
 	"net/http"
+
+	"stitch/internal/server"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -10,39 +12,33 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
-//go:embed all:dist
-var assets embed.FS
-
-func runDesktopApp() {
-	// Start the Go HTTP server in the background on port 4000
+// Run starts the Wails desktop application with embedded frontend assets.
+func Run(assets fs.FS) {
 	go func() {
-		server := &http.Server{
+		srv := &http.Server{
 			Addr:    ":4000",
-			Handler: setupRoutes(),
+			Handler: server.Routes(),
 		}
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			println("Server error:", err.Error())
 		}
 	}()
 
-	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create application with options
 	err := wails.Run(&options.App{
 		Title:         "Stitch",
 		Width:         1280,
 		Height:        800,
-		DisableResize: false, // Ensure window is resizable
+		DisableResize: false,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 9, G: 10, B: 16, A: 255},
-		OnStartup:        app.startup,
+		OnStartup:        app.Startup,
 		Bind: []interface{}{
 			app,
 		},
-		// macOS specific options to unlock the full-screen title button
 		Mac: &mac.Options{
 			TitleBar: &mac.TitleBar{
 				TitlebarAppearsTransparent: false,
