@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import useAppStore from '../store/useAppStore';
+import useAppStore, { apiFetch } from '../store/useAppStore';
 
 function escapeHtml(t = '') {
   return t.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
@@ -15,7 +15,7 @@ export default function Releases() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/api/releases')
+    apiFetch('/api/releases')
       .then((r) => r.json())
       .then((d) => { setReleases(d.releases); setLoading(false); })
       .catch((err) => { setError(err.message); setLoading(false); });
@@ -25,7 +25,7 @@ export default function Releases() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch('/api/release/create', {
+      const res = await apiFetch('/api/release/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: modal.path, owner: modal.owner, name: modal.name, tag: modal.tag, notes: modal.notes }),
@@ -35,7 +35,7 @@ export default function Releases() {
         alert(result.message || 'Release tag created!');
         setModal(null);
         // reload
-        fetch('/api/releases').then((r) => r.json()).then((d) => setReleases(d.releases));
+        apiFetch('/api/releases').then((r) => r.json()).then((d) => setReleases(d.releases));
       } else {
         alert(`Error: ${result.error || 'Failed to create release'}`);
       }

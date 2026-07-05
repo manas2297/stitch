@@ -10,17 +10,21 @@ It aggregates issues, PR reviews, tag releases, and build states into a single w
 
 ```
 stitch/
-  server.js                 ← Express API Orchestrator (gh CLI wrapper)
+  main.go                   ← Go backend entrypoint (REST API + Wails toggle)
+  app.go                    ← Desktop Wails JS/TS bindings
+  desktop_main.go           ← Wails window configuration (resizable, Mac controls)
   config.json               ← Local database of tracked repos (gitignored)
   client/                   ← Vite + React frontend app
     src/
-      store/useAppStore.js  ← Zustand global state
-      components/           ← Tab panels & UI elements (Overview, Focus, Roadmap...)
+      store/useAppStore.js  ← Zustand global state + apiFetch routing wrapper
+      components/           ← Tab panels & UI elements (Overview, Repositories, Profile...)
 ```
 
 ## Features
 
 - **🏠 Home Overview**: Aggregates all repos, showing total counts, active PRs, issues, and local vs web breakdown.
+- **📁 Repositories Workspace**: Dedicated workspace manager to add local repo directories, toggle focus tags, star primary major projects, and manage cloned files.
+- **👤 Developer Profile**: Form interfaces for global Git configure properties, environment runtime checks (Go, Node, Python, Postgres, Redis), and macOS diagnostics.
 - **⚡ Energy-Guided Navigation**:
   - **Low Energy**: PR Reviews & Issues (low overhead tasks).
   - **Medium Energy**: Cut Release (tag status & commit details) & Major Projects.
@@ -44,7 +48,11 @@ gh auth login
 
 ### 2. Install Dependencies
 ```bash
+# Install Node packages
 npm install
+
+# Download Go library dependencies
+go mod tidy
 ```
 
 ### 3. Initialize Configuration
@@ -53,17 +61,38 @@ Copy the template configuration file:
 cp config.example.json config.json
 ```
 
-### 4. Start Development Server
+### 4. Running Development Servers (Hot Reload)
+
+To start the Go backend server (managed by `air` for hot reloading) and the React frontend developer client:
 ```bash
 npm run dev
 ```
-This runs the nodemon Express backend on `http://127.0.0.1:4000` and the Vite/React dev server on `http://127.0.0.1:5173/`. 
-Open `http://127.0.0.1:5173/` in your browser.
+Open `http://localhost:5173` to access the application.
 
-### 5. Production Build
-To build and serve the application as a single production bundle:
+---
+
+## Desktop App Packaging (Wails)
+
+Stitch can be bundled as a standalone desktop GUI application (`.app` for macOS) using **Wails**.
+
+### 1. Install Wails CLI
 ```bash
-npm run build
-npm start
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```
-Go to `http://127.0.0.1:4000` to access the production app.
+
+### 2. Wails Development Mode (Live-Reload GUI)
+This boots the desktop app window directly with hot-reload enabled for both Go changes and React/CSS updates:
+```bash
+~/go/bin/wails dev
+```
+
+### 3. Packaging standalone Stitch.app
+To build the final production-ready application bundle:
+```bash
+# 1. Compile frontend client assets
+cd client && npm run build
+
+# 2. Package the app bundle
+cd .. && ~/go/bin/wails build -s
+```
+Your compiled native bundle is created under: **`build/bin/Stitch.app`**.

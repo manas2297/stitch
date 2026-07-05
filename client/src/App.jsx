@@ -9,21 +9,41 @@ import Releases from './components/Releases';
 import PRReviews from './components/PRReviews';
 import Issues from './components/Issues';
 import Builds from './components/Builds';
+import Repositories from './components/Repositories';
+import Profile from './components/Profile';
 
 const TABS = [
-  { id: 'overview',   label: 'Overview',       icon: '🏠', energy: 'all'    },
-  { id: 'focus',      label: 'Focus Area',      icon: '⚡', energy: 'high'   },
-  { id: 'projects',   label: 'Major Projects',  icon: '🎯', energy: 'medium' },
-  { id: 'releases',   label: 'Cut Release',     icon: '🚀', energy: 'medium' },
-  { id: 'pr-reviews', label: 'PR Reviews',      icon: '👀', energy: 'low'    },
-  { id: 'issues',     label: 'Issues',          icon: '🐛', energy: 'low'    },
-  { id: 'builds',     label: 'Fix Builds',      icon: '⚙️', energy: 'high'   },
+  { id: 'overview',     label: 'Overview',       icon: 'overview',     energy: 'all'    },
+  { id: 'repositories', label: 'Repositories',   icon: 'repositories', energy: 'all'    },
+  { id: 'focus',        label: 'Focus Area',      icon: 'focus',        energy: 'high'   },
+  { id: 'projects',     label: 'Major Projects',  icon: 'projects',     energy: 'medium' },
+  { id: 'releases',     label: 'Cut Release',     icon: 'releases',     energy: 'medium' },
+  { id: 'pr-reviews',   label: 'PR Reviews',      icon: 'pr-reviews',   energy: 'low'    },
+  { id: 'issues',       label: 'Issues',          icon: 'issues',       energy: 'low'    },
+  { id: 'builds',       label: 'Fix Builds',      icon: 'builds',       energy: 'high'   },
+  { id: 'profile',      label: 'Profile',         icon: 'profile',      energy: 'all'    },
 ];
 
 export default function App() {
-  const { repos, activeTab, activeEnergy, setActiveTab, setActiveEnergy, loadRepos } = useAppStore();
+  const { repos, activeTab, activeEnergy, setActiveTab, setActiveEnergy, loadRepos, sidebarCollapsed } = useAppStore();
 
-  useEffect(() => { loadRepos(); }, []);
+  useEffect(() => { 
+    loadRepos(); 
+
+    // Intercept clicks on external links when running inside Wails desktop app
+    const handleExternalLinks = (e) => {
+      const anchor = e.target.closest('a');
+      if (anchor && (anchor.target === '_blank' || anchor.href.startsWith('http'))) {
+        if (window.go && window.go.main && window.go.main.App) {
+          e.preventDefault();
+          window.go.main.App.OpenURL(anchor.href);
+        }
+      }
+    };
+
+    window.addEventListener('click', handleExternalLinks);
+    return () => window.removeEventListener('click', handleExternalLinks);
+  }, []);
 
   const visibleTabs = TABS.filter(
     (t) => activeEnergy === 'all' || t.energy === 'all' || t.energy === activeEnergy
@@ -40,14 +60,16 @@ export default function App() {
 
   const renderSection = () => {
     switch (activeTab) {
-      case 'overview':   return <Overview />;
-      case 'focus':      return <FocusWorkspace />;
-      case 'projects':   return <MajorProjects />;
-      case 'releases':   return <Releases />;
-      case 'pr-reviews': return <PRReviews />;
-      case 'issues':     return <Issues />;
-      case 'builds':     return <Builds />;
-      default:           return null;
+      case 'overview':     return <Overview />;
+      case 'repositories': return <Repositories />;
+      case 'focus':        return <FocusWorkspace />;
+      case 'projects':     return <MajorProjects />;
+      case 'releases':     return <Releases />;
+      case 'pr-reviews':   return <PRReviews />;
+      case 'issues':       return <Issues />;
+      case 'builds':       return <Builds />;
+      case 'profile':      return <Profile />;
+      default:             return null;
     }
   };
 
@@ -95,7 +117,7 @@ export default function App() {
         </div>
       </header>
 
-      <main>
+      <main className={sidebarCollapsed ? 'sidebar-collapsed' : ''}>
         <Sidebar tabs={TABS} visibleTabs={visibleTabs} />
         <div className="content-panel">{renderSection()}</div>
       </main>

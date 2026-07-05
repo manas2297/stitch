@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../store/useAppStore';
 import Roadmap from './Roadmap';
 
 const escapeHtml = (text = '') =>
@@ -65,8 +66,8 @@ export default function ProjectDetail({ repo, onBack }) {
     setLoading(true);
     setError('');
     Promise.all([
-      fetch(`/api/projects/details?owner=${repo.owner}&name=${repo.name}`).then((r) => r.json()),
-      fetch(`/api/roadmap?owner=${repo.owner}&name=${repo.name}`).then((r) => r.json()),
+      apiFetch(`/api/projects/details?owner=${repo.owner}&name=${repo.name}`).then((r) => r.json()),
+      apiFetch(`/api/roadmap?owner=${repo.owner}&name=${repo.name}`).then((r) => r.json()),
     ])
       .then(([d, rm]) => { setDetails(d); setRoadmap(rm); })
       .catch((err) => setError(err.message))

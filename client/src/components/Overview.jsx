@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import useAppStore from '../store/useAppStore';
+import useAppStore, { apiFetch } from '../store/useAppStore';
+import { useToast } from './Toast';
 
 function ageBadge(dateStr) {
   const days = (Date.now() - new Date(dateStr)) / 86400000;
@@ -26,6 +27,7 @@ function SkeletonList({ rows = 5 }) {
 }
 
 export default function Overview() {
+  const toast = useToast();
   const repos = useAppStore((s) => s.repos);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,17 +43,17 @@ export default function Overview() {
   const [activeGraph, setActiveGraph] = useState('github'); // 'github' | 'local'
 
   useEffect(() => {
-    fetch('/api/recents')
+    apiFetch('/api/recents')
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
 
-    fetch('/api/contributions')
+    apiFetch('/api/contributions')
       .then((r) => r.json())
       .then((c) => { setContributions(c); setLoadingContribs(false); })
       .catch(() => setLoadingContribs(false));
 
-    fetch('/api/contributions/local')
+    apiFetch('/api/contributions/local')
       .then((r) => r.json())
       .then((c) => { setLocalContribs(c); setLoadingLocalContribs(false); })
       .catch(() => setLoadingLocalContribs(false));
@@ -240,31 +242,35 @@ export default function Overview() {
       </div>
 
       {/* Repo breakdown */}
-      <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         <div className="overview-panel">
           <div className="overview-panel-title"><span>💻</span> Local Repos ({localRepos.length})</div>
-          {localRepos.length === 0
-            ? <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None added yet.</div>
-            : localRepos.map((r, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < localRepos.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+          {localRepos.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None added yet.</div>
+          ) : (
+            localRepos.map((r, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < localRepos.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
                 <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{r.name}</span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {r.isMajorProject && <span className="badge badge-green" style={{ fontSize: '0.65rem' }}>⭐</span>}
                   {!r.exists && <span className="badge badge-orange" style={{ fontSize: '0.65rem' }}>Missing</span>}
                 </div>
               </div>
-            ))}
+            ))
+          )}
         </div>
         <div className="overview-panel">
           <div className="overview-panel-title"><span>🌐</span> Web Repos ({webRepos.length})</div>
-          {webRepos.length === 0
-            ? <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None added yet.</div>
-            : webRepos.map((r, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < webRepos.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+          {webRepos.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None added yet.</div>
+          ) : (
+            webRepos.map((r, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < webRepos.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
                 <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{r.owner}/{r.name}</span>
                 {r.isMajorProject && <span className="badge badge-green" style={{ fontSize: '0.65rem' }}>⭐</span>}
               </div>
-            ))}
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -2,13 +2,15 @@
   "name": "stitch-github-manager",
   "version": "1.0.0",
   "description": "Local GitHub and repo manager sorted by energy levels",
-  "main": "server.js",
+  "main": "main.go",
   "scripts": {
-    "start": "node server.js",
-    "dev:server": "nodemon server.js",
+    "dev:server": "go run github.com/air-verse/air@latest -c .air.toml",
     "dev:client": "vite --config client/vite.config.js",
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
-    "build": "vite build --config client/vite.config.js"
+    "build:client": "vite build --config client/vite.config.js",
+    "build:server": "go build -o stitch-backend .",
+    "build": "npm run build:client && npm run build:server",
+    "start": "./stitch-backend"
   },
 
   "dependencies": {

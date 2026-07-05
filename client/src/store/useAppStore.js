@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 
+// Smart wrapper targeting the background server port in Desktop/Production modes
+export const apiFetch = (url, options = {}) => {
+  const isDesktop = window.go !== undefined || import.meta.env.PROD;
+  const baseUrl = isDesktop ? 'http://127.0.0.1:4000' : '';
+  return fetch(`${baseUrl}${url}`, options);
+};
+
 const useAppStore = create((set, get) => ({
   // ── State ────────────────────────────────────────────
   repos: [],
@@ -8,15 +15,17 @@ const useAppStore = create((set, get) => ({
   activeTab: 'focus',
   activeEnergy: 'all',
   isLoadingRepos: false,
+  sidebarCollapsed: false,
 
   // ── Actions ──────────────────────────────────────────
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveEnergy: (energy) => set({ activeEnergy: energy }),
+  toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
   loadRepos: async () => {
     set({ isLoadingRepos: true });
     try {
-      const res = await fetch('/api/repos');
+      const res = await apiFetch('/api/repos');
       const data = await res.json();
       set({ 
         repos: data.repos, 
@@ -40,7 +49,7 @@ const useAppStore = create((set, get) => ({
     }));
     // Sync to server
     try {
-      await fetch('/api/repos/toggle-major', {
+      await apiFetch('/api/repos/toggle-major', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path, owner, name }),
@@ -53,7 +62,7 @@ const useAppStore = create((set, get) => ({
 
   deleteRepo: async ({ path, owner, name }) => {
     try {
-      await fetch('/api/repos', {
+      await apiFetch('/api/repos', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path, owner, name }),
@@ -65,7 +74,7 @@ const useAppStore = create((set, get) => ({
   },
 
   addRepo: async (repoPath) => {
-    const res = await fetch('/api/repos', {
+    const res = await apiFetch('/api/repos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: repoPath }),
@@ -87,7 +96,7 @@ const useAppStore = create((set, get) => ({
       params.path = value;
     }
     try {
-      await fetch('/api/repos/set-focus', {
+      await apiFetch('/api/repos/set-focus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),

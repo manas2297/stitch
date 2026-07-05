@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import useAppStore from '../store/useAppStore';
+import useAppStore, { apiFetch } from '../store/useAppStore';
 
 function ageBadge(dateStr) {
   const days = (Date.now() - new Date(dateStr)) / 86400000;
@@ -43,12 +43,12 @@ export default function PRReviews() {
     try {
       let result;
       if (!value) {
-        const res = await fetch('/api/recents');
+        const res = await apiFetch('/api/recents');
         const d = await res.json();
         result = d.prs.map((pr) => ({ ...pr, repoName: pr.repository?.name }));
       } else {
         const [owner, name] = value.split('/');
-        const res = await fetch(`/api/prs?owner=${owner}&name=${name}`);
+        const res = await apiFetch(`/api/prs?owner=${owner}&name=${name}`);
         const d = await res.json();
         if (d.error) throw new Error(d.details || d.error);
         result = d.prs;

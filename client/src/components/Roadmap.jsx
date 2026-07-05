@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useToast } from './Toast';
+import { apiFetch } from '../store/useAppStore';
 
 export default function Roadmap({ owner, name, initialTasks, issue }) {
   const [tasks, setTasks] = useState(initialTasks || []);
@@ -12,7 +13,7 @@ export default function Roadmap({ owner, name, initialTasks, issue }) {
     if (!task) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/roadmap/add', {
+      const res = await apiFetch('/api/roadmap/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ owner, name, task }),

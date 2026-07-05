@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import useAppStore from '../store/useAppStore';
+import useAppStore, { apiFetch } from '../store/useAppStore';
 
 export default function FocusWorkspace() {
   const { repos, focusProject, setFocusProject } = useAppStore();
@@ -18,7 +18,7 @@ export default function FocusWorkspace() {
     setError('');
     setExplorerPath('');
     setFileViewer(null);
-    fetch('/api/focus/info')
+    apiFetch('/api/focus/info')
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch((err) => { setError(err.message); setLoading(false); });
@@ -34,7 +34,7 @@ export default function FocusWorkspace() {
     if (!data) return;
     setExplorerPath(path);
     setFileViewer(null);
-    const res = await fetch(`/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`);
+    const res = await apiFetch(`/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`);
     const items = await res.json();
     if (Array.isArray(items)) {
       items.sort((a, b) => (b.type === 'dir') - (a.type === 'dir'));
@@ -44,7 +44,7 @@ export default function FocusWorkspace() {
 
   const loadFile = async (path) => {
     setFileViewer({ path, content: 'Loading…' });
-    const res = await fetch(`/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`);
+    const res = await apiFetch(`/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`);
     const fd = await res.json();
     setFileViewer({ path, content: fd.decodedContent ?? 'Binary or too large to display.' });
   };
@@ -53,7 +53,12 @@ export default function FocusWorkspace() {
     setBotOutput('Analyzing repository build… [SSE stream started]\n');
     setBotRunning(true);
     const script = data.repo.buildScripts?.includes('lint') ? 'lint' : (data.repo.buildScripts?.includes('build') ? 'build' : '');
-    const es = new EventSource(`/api/build/run?path=${encodeURIComponent(data.repo.path)}&script=${encodeURIComponent(script)}`);
+    
+    // Resolve base path for EventSource SSE channel
+    const isDesktop = window.go !== undefined || import.meta.env.PROD;
+    const baseUrl = isDesktop ? 'http://127.0.0.1:4000' : '';
+
+    const es = new EventSource(`${baseUrl}/api/build/run?path=${encodeURIComponent(data.repo.path)}&script=${encodeURIComponent(script)}`);
     es.onmessage = (ev) => {
       const d = JSON.parse(ev.data);
       if (d.log) setBotOutput((prev) => prev + d.log);

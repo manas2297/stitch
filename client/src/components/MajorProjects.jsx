@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import useAppStore from '../store/useAppStore';
+import useAppStore, { apiFetch } from '../store/useAppStore';
 import ProjectDetail from './ProjectDetail';
 
 export default function MajorProjects() {
@@ -15,7 +15,7 @@ export default function MajorProjects() {
       if (!repo.owner || !repo.name) return;
       const key = `${repo.owner}/${repo.name}`;
       if (stats[key]) return; // already loaded
-      fetch(`/api/projects/details?owner=${repo.owner}&name=${repo.name}`)
+      apiFetch(`/api/projects/details?owner=${repo.owner}&name=${repo.name}`)
         .then((r) => r.json())
         .then((d) => setStats((prev) => ({ ...prev, [key]: d })))
         .catch(() => {});
