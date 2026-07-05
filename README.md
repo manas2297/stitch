@@ -85,6 +85,10 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ### 2. Wails Development Mode (Live-Reload GUI)
 This boots the desktop app window directly with hot-reload enabled for both Go changes and React/CSS updates:
 ```bash
+# Navigate to the backend directory
+cd backend
+
+# Start Wails dev mode
 ~/go/bin/wails dev
 ```
 
