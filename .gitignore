@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# User-specific config (contains local paths and personal repo list)
+config.json
+
+# Vite production build output
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# macOS metadata
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+nodemon-debug.log*
+*.log
+
+# Runtime data
+pids/
+*.pid
+
+# Optional: Antigravity AI workspace files
+.agents/
+.gemini/

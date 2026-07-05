@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stitch Repo Desk - Energy Guided Workflow Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo-glow"></div>
+      <h1>Stitch Repo Desk</h1>
+    </div>
+    <div class="energy-selector">
+      <div class="energy-bar">
+        <button class="energy-btn active" data-energy="all">All Modes</button>
+        <button class="energy-btn" data-energy="low">Low Energy</button>
+        <button class="energy-btn" data-energy="medium">Medium Energy</button>
+        <button class="energy-btn" data-energy="high">High Energy</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <ul class="menu-list">
+        <li class="menu-item active" data-tab="focus" data-energy-level="high">
+          <span class="menu-label">
+            <span>⚡</span> Focus Area
+          </span>
+          <span class="menu-badge badge-high">High</span>
+        </li>
+        <li class="menu-item" data-tab="projects" data-energy-level="medium">
+          <span class="menu-label">
+            <span>🎯</span> Major Projects
+          </span>
+          <span class="menu-badge badge-medium">Medium</span>
+        </li>
+        <li class="menu-item" data-tab="releases" data-energy-level="medium">
+          <span class="menu-label">
+            <span>🚀</span> Cut Release
+          </span>
+          <span class="menu-badge badge-medium">Medium</span>
+        </li>
+        <li class="menu-item" data-tab="pr-reviews" data-energy-level="low">
+          <span class="menu-label">
+            <span>👀</span> PR Reviews
+          </span>
+          <span class="menu-badge badge-low">Low</span>
+        </li>
+        <li class="menu-item" data-tab="issues" data-energy-level="low">
+          <span class="menu-label">
+            <span>🐛</span> Issues
+          </span>
+          <span class="menu-badge badge-low">Low</span>
+        </li>
+        <li class="menu-item" data-tab="builds" data-energy-level="high">
+          <span class="menu-label">
+            <span>⚙️</span> Fix Builds
+          </span>
+          <span class="menu-badge badge-high">High</span>
+        </li>
+      </ul>
+
+      <!-- Repositories Setup Widget -->
+      <div class="repo-widget">
+        <h3>Local Repositories (💻)</h3>
+        <div class="repo-widget-list" id="localRepoList" style="margin-bottom: 12px;">
+          <!-- Populated dynamically -->
+        </div>
+        <h3 style="margin-top: 12px;">Web Repositories (🌐)</h3>
+        <div class="repo-widget-list" id="webRepoList" style="margin-bottom: 12px;">
+          <!-- Populated dynamically -->
+        </div>
+        <form class="repo-form" id="addRepoForm">
+          <input type="text" id="newRepoPath" placeholder="Local path or owner/repo..." required>
+          <button type="submit">Add Repository</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Content Panel -->
+    <div class="content-panel">
+      
+      <!-- Section: Focus Area -->
+      <div class="section-content active" id="focus-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Focus Area Workspace</h2>
+            <div class="section-desc">Zero in on your active repository context. Features, review status, and build diagnostics in one unified view.</div>
+          </div>
+          <div class="select-wrapper">
+            <select class="custom-select" id="focusProjectSelector">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <div id="focusWorkspaceContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Section: Major Projects Tracking -->
+      <div class="section-content" id="projects-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Major Projects</h2>
+            <div class="section-desc">Track and prioritize key directories you've designated as major projects.</div>
+          </div>
+        </div>
+        <div class="card-grid" id="majorProjectsContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      
+      <!-- Section 1: Cut Release -->
+      <div class="section-content" id="releases-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Cut Releases</h2>
+            <div class="section-desc">Manage repository releases, view recent tag states, and check for unreleased changes.</div>
+          </div>
+        </div>
+        <div class="card-grid" id="releasesContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Section 2: PR Reviews -->
+      <div class="section-content" id="pr-reviews-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>PR Reviews</h2>
+            <div class="section-desc">Review pull requests requesting attention. Select a repo or view recent global ones.</div>
+          </div>
+          <div class="select-wrapper">
+            <select class="custom-select" id="prRepoSelector">
+              <option value="">All Repositories (Recent 10)</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+        <div class="card-grid" id="prListContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Section 3: Issues -->
+      <div class="section-content" id="issues-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Open Issues</h2>
+            <div class="section-desc">Find low-barrier outstanding bugs and features to tackle.</div>
+          </div>
+          <div class="select-wrapper">
+            <select class="custom-select" id="issueRepoSelector">
+              <option value="">All Repositories (Recent 10)</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+        <div class="card-grid" id="issueListContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Section 4: Fix Builds -->
+      <div class="section-content" id="builds-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Fix Builds</h2>
+            <div class="section-desc">Select a repository to run build commands and view diagnostic outputs.</div>
+          </div>
+          <div class="select-wrapper">
+            <select class="custom-select" id="buildRepoSelector">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+        
+        <div class="build-section-layout">
+          <div class="build-controls">
+            <select class="custom-select" id="buildScriptSelector" style="min-width: 150px;">
+              <!-- Populated dynamically based on package.json scripts -->
+            </select>
+            <button class="btn" id="runBuildBtn">🚀 Run Task</button>
+          </div>
+
+          <div class="terminal-container">
+            <div class="terminal-header">
+              <div class="terminal-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span id="terminalStatus">Terminal Offline</span>
+            </div>
+            <div class="terminal-output" id="terminalConsole">Console is idle. Select a repository and task to run.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Modal for cutting releases -->
+  <div class="modal-overlay" id="releaseModal">
+    <div class="modal">
+      <h3>Create Release Tag</h3>
+      <form class="modal-form" id="releaseForm">
+        <input type="hidden" id="modalRepoPath">
+        <div>
+          <label for="modalTagName">Tag Name (e.g. v1.0.0)</label>
+          <input type="text" id="modalTagName" placeholder="v1.0.0" required>
+        </div>
+        <div>
+          <label for="modalReleaseNotes">Release Notes</label>
+          <textarea id="modalReleaseNotes" rows="6" placeholder="Describe the changes..." required></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="closeModalBtn">Cancel</button>
+          <button type="submit" class="btn">Publish Release</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
