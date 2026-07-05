@@ -56,7 +56,7 @@ export default function App() {
       <header>
         <div className="brand">
           <div className="logo-glow" />
-          <h1>Stitch Repo Desk</h1>
+          <h1>Stitch</h1>
         </div>
 
         {repos.length > 0 && (

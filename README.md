@@ -1,6 +1,6 @@
-# Stitch Repo Desk 🧵
+# Stitch 🧵
 
-Stitch Repo Desk is a productivity-first developer dashboard that groups and manages your GitHub repositories (both local clones and web-only remotes) by your active energy levels (Low, Medium, High). 
+Stitch is a productivity-first developer dashboard that groups and manages your GitHub repositories (both local clones and web-only remotes) by your active energy levels (Low, Medium, High). 
 
 It aggregates issues, PR reviews, tag releases, and build states into a single workspace, utilizing the official GitHub CLI (`gh`) under the hood to ensure credentials are kept secure and local.
 
