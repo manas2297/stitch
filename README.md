@@ -6,19 +6,7 @@ It aggregates issues, PR reviews, tag releases, and build states into a single w
 
 ---
 
-## Architecture
-
-```
-stitch/
-  main.go                   ← Go backend entrypoint (REST API + Wails toggle)
-  app.go                    ← Desktop Wails JS/TS bindings
-  desktop_main.go           ← Wails window configuration (resizable, Mac controls)
-  config.json               ← Local database of tracked repos (gitignored)
-  client/                   ← Vite + React frontend app
-    src/
-      store/useAppStore.js  ← Zustand global state + apiFetch routing wrapper
-      components/           ← Tab panels & UI elements (Overview, Repositories, Profile...)
-```
+See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for the full folder layout, frontend vs backend boundaries, API route map, and where to add new code.
 
 ## Features
 
