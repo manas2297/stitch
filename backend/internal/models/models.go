@@ -14,6 +14,7 @@ type Repo struct {
 
 // Config is the persisted local Stitch workspace state.
 type Config struct {
-	Repos        []Repo `json:"repos"`
-	FocusProject string `json:"focusProject"`
+	Repos        []Repo            `json:"repos"`
+	FocusProject string            `json:"focusProject"`
+	TabEnergies  map[string]string `json:"tabEnergies,omitempty"`
 }

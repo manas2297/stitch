@@ -16,6 +16,18 @@ const useAppStore = create((set, get) => ({
   activeEnergy: 'all',
   isLoadingRepos: false,
   sidebarCollapsed: false,
+  githubRepoCount: 0,
+  tabEnergies: {
+    overview: 'all',
+    repositories: 'all',
+    focus: 'high',
+    projects: 'medium',
+    releases: 'medium',
+    'pr-reviews': 'low',
+    issues: 'low',
+    builds: 'high',
+    profile: 'all',
+  },
 
   // ── Actions ──────────────────────────────────────────
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -31,11 +43,33 @@ const useAppStore = create((set, get) => ({
         repos: data.repos, 
         currentUser: data.currentUser || '',
         focusProject: data.focusProject, 
+        tabEnergies: data.tabEnergies || get().tabEnergies,
+        githubRepoCount: data.githubRepoCount || 0,
         isLoadingRepos: false 
       });
     } catch (err) {
       console.error('Failed to load repos:', err);
       set({ isLoadingRepos: false });
+    }
+  },
+
+  saveTabEnergies: async (tabEnergies) => {
+    try {
+      const res = await apiFetch('/api/config/tab-energies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tabEnergies),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ tabEnergies: data.tabEnergies });
+        return { success: true };
+      }
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || `HTTP ${res.status}` };
+    } catch (err) {
+      console.error('Failed to save tab energies:', err);
+      return { success: false, error: err.message };
     }
   },
 

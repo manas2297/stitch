@@ -13,19 +13,29 @@ import Repositories from './components/Repositories';
 import Profile from './components/Profile';
 
 const TABS = [
-  { id: 'overview',     label: 'Overview',       icon: 'overview',     energy: 'all'    },
-  { id: 'repositories', label: 'Repositories',   icon: 'repositories', energy: 'all'    },
-  { id: 'focus',        label: 'Focus Area',      icon: 'focus',        energy: 'high'   },
-  { id: 'projects',     label: 'Major Projects',  icon: 'projects',     energy: 'medium' },
-  { id: 'releases',     label: 'Cut Release',     icon: 'releases',     energy: 'medium' },
-  { id: 'pr-reviews',   label: 'PR Reviews',      icon: 'pr-reviews',   energy: 'low'    },
-  { id: 'issues',       label: 'Issues',          icon: 'issues',       energy: 'low'    },
-  { id: 'builds',       label: 'Fix Builds',      icon: 'builds',       energy: 'high'   },
-  { id: 'profile',      label: 'Profile',         icon: 'profile',      energy: 'all'    },
+  { id: 'overview',     label: 'Overview',       icon: 'overview'     },
+  { id: 'repositories', label: 'Repositories',   icon: 'repositories' },
+  { id: 'focus',        label: 'Focus Area',      icon: 'focus'        },
+  { id: 'projects',     label: 'Major Projects',  icon: 'projects'     },
+  { id: 'releases',     label: 'Cut Release',     icon: 'releases'     },
+  { id: 'pr-reviews',   label: 'PR Reviews',      icon: 'pr-reviews'   },
+  { id: 'issues',       label: 'Issues',          icon: 'issues'       },
+  { id: 'builds',       label: 'Fix Builds',      icon: 'builds'       },
+  { id: 'profile',      label: 'Profile',         icon: 'profile'      },
 ];
 
 export default function App() {
-  const { repos, activeTab, activeEnergy, setActiveTab, setActiveEnergy, loadRepos, sidebarCollapsed } = useAppStore();
+  const { 
+    repos, 
+    activeTab, 
+    activeEnergy, 
+    setActiveTab, 
+    setActiveEnergy, 
+    loadRepos, 
+    sidebarCollapsed,
+    tabEnergies,
+    githubRepoCount
+  } = useAppStore();
 
   useEffect(() => { 
     loadRepos(); 
@@ -45,7 +55,12 @@ export default function App() {
     return () => window.removeEventListener('click', handleExternalLinks);
   }, []);
 
-  const visibleTabs = TABS.filter(
+  const tabsWithEnergy = TABS.map((t) => ({
+    ...t,
+    energy: tabEnergies[t.id] || 'all',
+  }));
+
+  const visibleTabs = tabsWithEnergy.filter(
     (t) => activeEnergy === 'all' || t.energy === 'all' || t.energy === activeEnergy
   );
 
@@ -54,7 +69,7 @@ export default function App() {
     if (!visibleTabs.find((t) => t.id === activeTab) && visibleTabs.length > 0) {
       setActiveTab(visibleTabs[0].id);
     }
-  }, [activeEnergy]);
+  }, [activeEnergy, visibleTabs]);
 
   const majorCount = repos.filter((r) => r.isMajorProject).length;
 
@@ -73,6 +88,9 @@ export default function App() {
     }
   };
 
+  const energyOptions = ['all', 'low', 'medium', 'high'];
+  const activeIndex = energyOptions.indexOf(activeEnergy);
+
   return (
     <ToastProvider>
       <header>
@@ -81,10 +99,10 @@ export default function App() {
           <h1>Stitch</h1>
         </div>
 
-        {repos.length > 0 && (
+        {(repos.length > 0 || githubRepoCount > 0) && (
           <div className="header-stats">
             <div className="header-stat">
-              <span>📦</span> <strong>{repos.length}</strong> repos
+              <span>📦</span> <strong>{githubRepoCount > 0 ? githubRepoCount : repos.length}</strong> repos
             </div>
             <div className="header-stat-divider" />
             <div className="header-stat">
@@ -96,21 +114,44 @@ export default function App() {
             </div>
             <div className="header-stat-divider" />
             <div className="header-stat">
-              <span>🌐</span> <strong>{repos.filter(r => r.type !== 'local').length}</strong> web
+              <span>🌐</span> <strong>{repos.length}</strong> tracked
             </div>
           </div>
         )}
 
         <div className="energy-selector">
-          <div className="energy-bar">
-            {['all', 'low', 'medium', 'high'].map((e) => (
+          <div className="energy-bar" style={{ '--active-index': activeIndex }}>
+            <div className="energy-indicator" />
+            {energyOptions.map((e) => (
               <button
                 key={e}
                 data-energy={e}
                 className={`energy-btn ${activeEnergy === e ? 'active' : ''}`}
                 onClick={() => setActiveEnergy(e)}
               >
-                {e === 'all' ? 'All Modes' : `${e.charAt(0).toUpperCase() + e.slice(1)} Energy`}
+                {e === 'all' && (
+                  <svg className="energy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+                {e === 'low' && (
+                  <svg className="energy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                )}
+                {e === 'medium' && (
+                  <svg className="energy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                )}
+                {e === 'high' && (
+                  <svg className="energy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                  </svg>
+                )}
+                <span>
+                  {e === 'all' ? 'All Modes' : `${e.charAt(0).toUpperCase() + e.slice(1)}`}
+                </span>
               </button>
             ))}
           </div>
@@ -118,7 +159,7 @@ export default function App() {
       </header>
 
       <main className={sidebarCollapsed ? 'sidebar-collapsed' : ''}>
-        <Sidebar tabs={TABS} visibleTabs={visibleTabs} />
+        <Sidebar tabs={tabsWithEnergy} visibleTabs={visibleTabs} />
         <div className="content-panel">{renderSection()}</div>
       </main>
     </ToastProvider>

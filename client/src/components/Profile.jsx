@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useToast } from './Toast';
-import { apiFetch } from '../store/useAppStore';
+import useAppStore, { apiFetch } from '../store/useAppStore';
+
+const TABS = [
+  { id: 'overview',     label: 'Overview' },
+  { id: 'repositories', label: 'Repositories' },
+  { id: 'focus',        label: 'Focus Area' },
+  { id: 'projects',     label: 'Major Projects' },
+  { id: 'releases',     label: 'Cut Release' },
+  { id: 'pr-reviews',   label: 'PR Reviews' },
+  { id: 'issues',       label: 'Issues' },
+  { id: 'builds',       label: 'Fix Builds' },
+  { id: 'profile',      label: 'Profile' },
+];
+
 
 const MISSING_INFO_MAP = {
   go: {
@@ -45,6 +58,29 @@ export default function Profile() {
 
   // Selected missing runtime hook at root level
   const [selectedMissing, setSelectedMissing] = useState(null);
+
+  // Mode configurations state & actions
+  const { tabEnergies, saveTabEnergies } = useAppStore();
+  const [localTabEnergies, setLocalTabEnergies] = useState({});
+  const [savingModes, setSavingModes] = useState(false);
+
+  useEffect(() => {
+    if (tabEnergies) {
+      setLocalTabEnergies(tabEnergies);
+    }
+  }, [tabEnergies]);
+
+  const handleSaveModes = async () => {
+    setSavingModes(true);
+    const result = await saveTabEnergies(localTabEnergies);
+    if (result && result.success) {
+      toast('Mode configuration saved successfully!', 'success');
+    } else {
+      toast(`Failed to save configuration: ${result?.error || 'Unknown error'}`, 'error');
+    }
+    setSavingModes(false);
+  };
+
 
   const loadProfile = async () => {
     try {
@@ -320,6 +356,72 @@ export default function Profile() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Mode Configurations */}
+      <div className="overview-panel" style={{ marginTop: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>🎯 Section Mode Configuration</h3>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              Define which energy mode category each navigation section belongs to.
+            </div>
+          </div>
+          <button 
+            onClick={handleSaveModes} 
+            className="btn" 
+            disabled={savingModes}
+            style={{ padding: '8px 20px', fontSize: '0.85rem' }}
+          >
+            {savingModes ? 'Saving...' : 'Save Configurations'}
+          </button>
+        </div>
+
+        <div className="mode-config-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          {Object.entries(localTabEnergies).map(([tabId, currentEnergy]) => {
+            // Find tab label
+            const label = TABS.find(t => t.id === tabId)?.label || tabId.charAt(0).toUpperCase() + tabId.slice(1);
+            return (
+              <div key={tabId} className="mode-config-card" style={{
+                background: 'rgba(255, 255, 255, 0.01)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                transition: 'all 0.2s'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{label}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {tabId}</span>
+                </div>
+                <select
+                  value={currentEnergy}
+                  onChange={(e) => setLocalTabEnergies(prev => ({ ...prev, [tabId]: e.target.value }))}
+                  className="mode-select-dropdown"
+                  style={{
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-color)',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">All Modes</option>
+                  <option value="low">Low Energy</option>
+                  <option value="medium">Medium Energy</option>
+                  <option value="high">High Energy</option>
+                </select>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

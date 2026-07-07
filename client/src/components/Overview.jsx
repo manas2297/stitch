@@ -29,6 +29,8 @@ function SkeletonList({ rows = 5 }) {
 export default function Overview() {
   const toast = useToast();
   const repos = useAppStore((s) => s.repos);
+  const githubRepoCount = useAppStore((s) => s.githubRepoCount);
+  const currentUser = useAppStore((s) => s.currentUser);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   
@@ -62,6 +64,9 @@ export default function Overview() {
   const majorRepos = repos.filter((r) => r.isMajorProject);
   const localRepos = repos.filter((r) => r.type === 'local');
   const webRepos   = repos.filter((r) => r.type !== 'local');
+  // Total = GitHub account total OR tracked count, whichever is bigger
+  const totalRepoCount = githubRepoCount > 0 ? githubRepoCount : repos.length;
+  const trackedCount = repos.length;
 
   // Select which graph parameters to show
   const currentGraph = activeGraph === 'github' ? contributions : localContribs;
@@ -158,8 +163,13 @@ export default function Overview() {
       <div className="overview-grid">
         <div className="overview-stat-card purple">
           <div className="overview-stat-icon">📦</div>
-          <div className="overview-stat-val">{repos.length}</div>
-          <div className="overview-stat-label">Total Repos</div>
+          <div className="overview-stat-val">{totalRepoCount}</div>
+          <div className="overview-stat-label">GitHub Repos</div>
+          {trackedCount < totalRepoCount && (
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              {trackedCount} tracked
+            </div>
+          )}
         </div>
         <div className="overview-stat-card green">
           <div className="overview-stat-icon">⭐</div>

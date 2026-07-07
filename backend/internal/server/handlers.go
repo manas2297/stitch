@@ -23,10 +23,19 @@ import (
 func HandleGetRepos(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Read()
 	var currentGitHubUser string
+	var githubRepoCount int
 
-	authRes := shell.RunCmd("gh api user --jq .login", "")
-	if authRes.Success {
-		currentGitHubUser = strings.TrimSpace(authRes.Stdout)
+	userRes := shell.RunCmd("gh api user --jq '{login: .login, public_repos: .public_repos, total_private_repos: .total_private_repos}'", "")
+	if userRes.Success && userRes.Stdout != "" {
+		var u struct {
+			Login            string `json:"login"`
+			PublicRepos      int    `json:"public_repos"`
+			TotalPrivateRepos int   `json:"total_private_repos"`
+		}
+		if err := json.Unmarshal([]byte(userRes.Stdout), &u); err == nil {
+			currentGitHubUser = u.Login
+			githubRepoCount = u.PublicRepos + u.TotalPrivateRepos
+		}
 	}
 
 	updatedRepos := []models.Repo{}
@@ -83,13 +92,49 @@ func HandleGetRepos(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	tabEnergies := cfg.TabEnergies
+	if tabEnergies == nil {
+		tabEnergies = map[string]string{
+			"overview":     "all",
+			"repositories": "all",
+			"focus":        "high",
+			"projects":     "medium",
+			"releases":     "medium",
+			"pr-reviews":   "low",
+			"issues":       "low",
+			"builds":       "high",
+			"profile":      "all",
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"repos":        updatedRepos,
-		"focusProject": cfg.FocusProject,
-		"currentUser":  currentGitHubUser,
+		"repos":            updatedRepos,
+		"focusProject":     cfg.FocusProject,
+		"currentUser":      currentGitHubUser,
+		"tabEnergies":      tabEnergies,
+		"githubRepoCount":  githubRepoCount,
 	})
 }
+
+func HandlePostTabEnergies(w http.ResponseWriter, r *http.Request) {
+	var body map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	cfg := config.Read()
+	cfg.TabEnergies = body
+	config.Write(cfg)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"tabEnergies": cfg.TabEnergies,
+	})
+}
+
 
 func HandlePostRepos(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -892,7 +937,6 @@ func HandleGetGitHubContributions(w http.ResponseWriter, r *http.Request) {
 
 func HandleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Read()
-	commitMap := map[string]int{}
 
 	globalEmail := ""
 	globalName := ""
@@ -903,54 +947,84 @@ func HandleGetLocalContributions(w http.ResponseWriter, r *http.Request) {
 		globalName = strings.TrimSpace(nameRes.Stdout)
 	}
 
+	// Build author filter once using global identity
+	identities := map[string]bool{}
+	for _, val := range []string{globalEmail, globalName} {
+		if val != "" {
+			identities[val] = true
+		}
+	}
+	if globalName != "" {
+		parts := strings.Split(strings.ToLower(globalName), " ")
+		if len(parts) > 0 && len(parts[0]) > 3 {
+			identities[parts[0]] = true
+		}
+	}
+
+	// Collect valid local repo paths
+	type repoJob struct {
+		absPath       string
+		authorFilters string
+	}
+	var jobs []repoJob
 	for _, repo := range cfg.Repos {
-		if repo.Path != "" {
-			absPath, _ := filepath.Abs(repo.Path)
-			if _, err := os.Stat(absPath); err == nil {
-				localEmail := ""
-				localName := ""
-				if eRes := shell.RunCmd("git config user.email", absPath); eRes.Success {
-					localEmail = strings.TrimSpace(eRes.Stdout)
-				}
-				if nRes := shell.RunCmd("git config user.name", absPath); nRes.Success {
-					localName = strings.TrimSpace(nRes.Stdout)
-				}
+		if repo.Path == "" {
+			continue
+		}
+		absPath, _ := filepath.Abs(repo.Path)
+		if _, err := os.Stat(absPath); err != nil {
+			continue
+		}
+		// Merge local git identity with global
+		localIdentities := map[string]bool{}
+		for k := range identities {
+			localIdentities[k] = true
+		}
+		if eRes := shell.RunCmd("git config user.email", absPath); eRes.Success {
+			v := strings.TrimSpace(eRes.Stdout)
+			if v != "" {
+				localIdentities[v] = true
+			}
+		}
+		if nRes := shell.RunCmd("git config user.name", absPath); nRes.Success {
+			v := strings.TrimSpace(nRes.Stdout)
+			if v != "" {
+				localIdentities[v] = true
+			}
+		}
+		authorFilters := ""
+		for k := range localIdentities {
+			authorFilters += fmt.Sprintf(`--author="%s" `, k)
+		}
+		jobs = append(jobs, repoJob{absPath: absPath, authorFilters: authorFilters})
+	}
 
-				identities := map[string]bool{}
-				for _, val := range []string{globalEmail, localEmail, globalName, localName} {
-					if val != "" {
-						identities[val] = true
-					}
-				}
+	// Run git log concurrently across all repos
+	type dateResult struct {
+		dates []string
+	}
+	results := make([]dateResult, len(jobs))
+	var wg sync.WaitGroup
+	for i, job := range jobs {
+		wg.Add(1)
+		go func(idx int, j repoJob) {
+			defer wg.Done()
+			cmd := fmt.Sprintf(`git log --all %s --since="1 year ago" --date=short --pretty=format:"%%ad"`, j.authorFilters)
+			logRes := shell.RunCmd(cmd, j.absPath)
+			if logRes.Success && logRes.Stdout != "" {
+				results[idx] = dateResult{dates: strings.Split(logRes.Stdout, "\n")}
+			}
+		}(i, job)
+	}
+	wg.Wait()
 
-				authorPatterns := []string{}
-				for k := range identities {
-					authorPatterns = append(authorPatterns, k)
-				}
-				if globalName != "" {
-					parts := strings.Split(strings.ToLower(globalName), " ")
-					if len(parts) > 0 && len(parts[0]) > 3 {
-						authorPatterns = append(authorPatterns, parts[0])
-					}
-				}
-
-				authorFilters := ""
-				for _, p := range authorPatterns {
-					authorFilters += fmt.Sprintf(`--author="%s" `, p)
-				}
-
-				cmd := fmt.Sprintf(`git log --all %s --since="1 year ago" --date=short --pretty=format:"%%ad"`, authorFilters)
-				logRes := shell.RunCmd(cmd, absPath)
-
-				if logRes.Success && logRes.Stdout != "" {
-					dates := strings.Split(logRes.Stdout, "\n")
-					for _, d := range dates {
-						dTrim := strings.TrimSpace(d)
-						if dTrim != "" {
-							commitMap[dTrim] = commitMap[dTrim] + 1
-						}
-					}
-				}
+	// Aggregate commit counts by date
+	commitMap := map[string]int{}
+	for _, res := range results {
+		for _, d := range res.dates {
+			dTrim := strings.TrimSpace(d)
+			if dTrim != "" {
+				commitMap[dTrim]++
 			}
 		}
 	}
