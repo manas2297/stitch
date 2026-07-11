@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 
 	"stitch/internal/config"
 	"stitch/internal/models"
+	"stitch/internal/plans"
 	"stitch/internal/shell"
 )
 
@@ -1223,54 +1225,93 @@ func urlPathEncode(str string) string {
 }
 
 func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
-	// 1. Fetch GitHub CLI User info
-	var githubUser string
-	var githubAvatar string
-	var githubEmail string
+	// 1. Fetch GitHub CLI User info (expanded fields)
+	var githubUser, githubAvatar, githubEmail string
+	var githubBio, githubLocation, githubCompany, githubCreatedAt, githubPlan string
+	var githubFollowers, githubFollowing, sshKeyCount int
 
-	userRes := shell.RunCmd("gh api user --jq '{login: .login, avatar: .avatar_url, email: .email}'", "")
+	userRes := shell.RunCmd(`gh api user --jq '{login: .login, avatar: .avatar_url, email: .email, bio: .bio, followers: .followers, following: .following, location: .location, company: .company, created_at: .created_at, plan: .plan.name}'`, "")
 	if userRes.Success && userRes.Stdout != "" {
 		var u struct {
-			Login  string `json:"login"`
-			Avatar string `json:"avatar"`
-			Email  string `json:"email"`
+			Login     string `json:"login"`
+			Avatar    string `json:"avatar"`
+			Email     string `json:"email"`
+			Bio       string `json:"bio"`
+			Followers int    `json:"followers"`
+			Following int    `json:"following"`
+			Location  string `json:"location"`
+			Company   string `json:"company"`
+			CreatedAt string `json:"created_at"`
+			Plan      string `json:"plan"`
 		}
 		if err := json.Unmarshal([]byte(userRes.Stdout), &u); err == nil {
 			githubUser = u.Login
 			githubAvatar = u.Avatar
 			githubEmail = u.Email
+			githubBio = u.Bio
+			githubFollowers = u.Followers
+			githubFollowing = u.Following
+			githubLocation = u.Location
+			githubCompany = u.Company
+			githubCreatedAt = u.CreatedAt
+			githubPlan = u.Plan
 		}
 	}
 
-	// 2. Fetch Global Git Identity
-	var gitName string
-	var gitEmail string
+	// 2. SSH Key count
+	if sshRes := shell.RunCmd(`gh ssh-key list --json id`, ""); sshRes.Success && sshRes.Stdout != "" && sshRes.Stdout != "[]" {
+		var keys []struct{ ID int `json:"id"` }
+		if err := json.Unmarshal([]byte(sshRes.Stdout), &keys); err == nil {
+			sshKeyCount = len(keys)
+		}
+	}
+
+	// 3. Fetch Global Git Identity
+	var gitName, gitEmail string
 	if res := shell.RunCmd("git config --global user.name", ""); res.Success {
-		gitName = res.Stdout
+		gitName = strings.TrimSpace(res.Stdout)
 	}
 	if res := shell.RunCmd("git config --global user.email", ""); res.Success {
-		gitEmail = res.Stdout
+		gitEmail = strings.TrimSpace(res.Stdout)
 	}
 
-	// 3. Fetch CLI Diagnostic Data
-	var gitVer string
-	var ghVer string
+	// Email mismatch: GitHub CLI email vs. git global email
+	emailMismatch := githubEmail != "" && gitEmail != "" &&
+		strings.ToLower(strings.TrimSpace(githubEmail)) != strings.ToLower(strings.TrimSpace(gitEmail))
+
+	// 4. Fetch CLI Diagnostic Data
+	var gitVer, ghVer string
 	if res := shell.RunCmd("git version", ""); res.Success {
-		gitVer = res.Stdout
+		gitVer = strings.TrimSpace(res.Stdout)
 	}
 	if res := shell.RunCmd("gh --version | head -1", ""); res.Success {
-		ghVer = res.Stdout
+		ghVer = strings.TrimSpace(res.Stdout)
 	}
 
-	// 4. Query runtime engine versions dynamically
+	// Dynamic OS and shell detection
+	detectedOS := runtime.GOOS
+	detectedShell := os.Getenv("SHELL")
+	if detectedShell == "" {
+		detectedShell = "unknown"
+	} else {
+		// Show only the basename (e.g. "zsh", "bash")
+		parts := strings.Split(detectedShell, "/")
+		detectedShell = parts[len(parts)-1]
+	}
+
+	// 5. Query runtime engine versions dynamically
 	runtimes := map[string]string{
-		"go":      "Not Installed",
-		"node":    "Not Installed",
-		"npm":     "Not Installed",
-		"python":  "Not Installed",
+		"go":       "Not Installed",
+		"node":     "Not Installed",
+		"npm":      "Not Installed",
+		"python":   "Not Installed",
 		"postgres": "Not Installed",
-		"mongo":   "Not Installed",
-		"redis":   "Not Installed",
+		"mongo":    "Not Installed",
+		"redis":    "Not Installed",
+		"docker":   "Not Installed",
+		"brew":     "Not Installed",
+		"bun":      "Not Installed",
+		"rust":     "Not Installed",
 	}
 
 	if res := shell.RunCmd("go version", ""); res.Success {
@@ -1299,7 +1340,6 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		runtimes["mongo"] = strings.TrimSpace(res.Stdout)
 	}
 	if res := shell.RunCmd("redis-server --version", ""); res.Success {
-		// Output: Redis server v=7.2.4 sha=00000000:0 ... -> Clean up output
 		parts := strings.Split(res.Stdout, " ")
 		if len(parts) >= 3 {
 			runtimes["redis"] = parts[0] + " " + parts[1] + " " + parts[2]
@@ -1307,23 +1347,46 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 			runtimes["redis"] = strings.TrimSpace(res.Stdout)
 		}
 	}
+	if res := shell.RunCmd("docker --version", ""); res.Success {
+		runtimes["docker"] = strings.TrimSpace(res.Stdout)
+	}
+	if res := shell.RunCmd("brew --version", ""); res.Success {
+		// Only take the first line
+		lines := strings.Split(strings.TrimSpace(res.Stdout), "\n")
+		runtimes["brew"] = lines[0]
+	}
+	if res := shell.RunCmd("bun --version", ""); res.Success {
+		runtimes["bun"] = strings.TrimSpace(res.Stdout)
+	}
+	if res := shell.RunCmd("rustc --version", ""); res.Success {
+		runtimes["rust"] = strings.TrimSpace(res.Stdout)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"github": map[string]interface{}{
-			"username":  githubUser,
-			"avatarUrl": githubAvatar,
-			"email":     githubEmail,
+			"username":    githubUser,
+			"avatarUrl":   githubAvatar,
+			"email":       githubEmail,
+			"bio":         githubBio,
+			"followers":   githubFollowers,
+			"following":   githubFollowing,
+			"location":    githubLocation,
+			"company":     githubCompany,
+			"createdAt":   githubCreatedAt,
+			"plan":        githubPlan,
+			"sshKeyCount": sshKeyCount,
 		},
 		"git": map[string]interface{}{
-			"globalName":  gitName,
-			"globalEmail": gitEmail,
+			"globalName":    gitName,
+			"globalEmail":   gitEmail,
+			"emailMismatch": emailMismatch,
 		},
 		"diagnostics": map[string]interface{}{
 			"gitVersion": strings.TrimPrefix(gitVer, "git version "),
 			"ghVersion":  ghVer,
-			"os":         "macOS",
-			"shell":      "zsh",
+			"os":         detectedOS,
+			"shell":      detectedShell,
 		},
 		"runtimes": runtimes,
 	})
@@ -1357,4 +1420,146 @@ func HandlePostProfileGit(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte(`{"success":true,"message":"Global Git identity configured successfully."}`))
 }
+
+func HandleGetPlans(w http.ResponseWriter, r *http.Request) {
+	project := r.URL.Query().Get("project")
+	db := plans.Read()
+	filtered := []plans.Plan{}
+	for _, p := range db.Plans {
+		if project == "" || p.Project == project {
+			filtered = append(filtered, p)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(filtered)
+}
+
+func HandlePostPlan(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Project     string   `json:"project"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Tags        []string `json:"tags"`
+		Status      string   `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Project == "" || body.Title == "" {
+		http.Error(w, `{"error":"Invalid payload. project and title are required."}`, http.StatusBadRequest)
+		return
+	}
+
+	created := plans.Add(body.Project, body.Title, body.Description, body.Tags, body.Status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(created)
+}
+
+func HandlePutPlan(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID          string   `json:"id"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Tags        []string `json:"tags"`
+		Status      string   `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" {
+		http.Error(w, `{"error":"Invalid payload. id is required."}`, http.StatusBadRequest)
+		return
+	}
+
+	updated, found := plans.Update(body.ID, body.Title, body.Description, body.Tags, body.Status)
+	if !found {
+		http.Error(w, `{"error":"Plan not found."}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updated)
+}
+
+func HandleDeletePlan(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, `{"error":"id query parameter is required."}`, http.StatusBadRequest)
+		return
+	}
+
+	if removed := plans.Delete(id); !removed {
+		http.Error(w, `{"error":"Plan not found."}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"success":true}`))
+}
+
+func HandlePromotePlan(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" {
+		http.Error(w, `{"error":"Invalid payload. id is required."}`, http.StatusBadRequest)
+		return
+	}
+
+	db := plans.Read()
+	var target plans.Plan
+	found := false
+	for _, p := range db.Plans {
+		if p.ID == body.ID {
+			target = p
+			found = true
+			break
+		}
+	}
+	if !found {
+		http.Error(w, `{"error":"Plan not found."}`, http.StatusNotFound)
+		return
+	}
+
+	// Figure out local path or repo name from config to identify where to run `gh issue create`
+	cfg := config.Read()
+	var repoPath string
+	var ownerName string
+
+	for _, repo := range cfg.Repos {
+		key := repo.Path
+		if key == "" {
+			key = fmt.Sprintf("%s/%s", repo.Owner, repo.Name)
+		}
+		if key == target.Project {
+			repoPath = repo.Path
+			ownerName = fmt.Sprintf("%s/%s", repo.Owner, repo.Name)
+			break
+		}
+	}
+
+	// Build the CLI execution string
+	cmdStr := fmt.Sprintf(`gh issue create -t "%s" -b "%s"`, strings.ReplaceAll(target.Title, `"`, `\"`), strings.ReplaceAll(target.Description, `"`, `\"`))
+	if repoPath == "" && ownerName != "" {
+		// Remote/web project, target explicitly
+		cmdStr += fmt.Sprintf(` -R "%s"`, ownerName)
+	}
+
+	res := shell.RunCmd(cmdStr, repoPath)
+	if !res.Success {
+		http.Error(w, fmt.Sprintf(`{"error":"GitHub CLI failed: %s"}`, strings.ReplaceAll(res.Stderr, `"`, `\"`)), http.StatusInternalServerError)
+		return
+	}
+
+	// Stdout has the created issue URL
+	issueURL := strings.TrimSpace(res.Stdout)
+	if issueURL == "" {
+		http.Error(w, `{"error":"GitHub CLI created the issue but did not return a URL."}`, http.StatusInternalServerError)
+		return
+	}
+
+	plans.SetIssueURL(target.ID, issueURL)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"issueUrl": issueURL,
+	})
+}
+
 

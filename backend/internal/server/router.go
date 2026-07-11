@@ -26,6 +26,11 @@ func Routes() http.Handler {
 	// 3. Focus Area
 	mux.HandleFunc("GET /api/focus/info", HandleFocusInfo)
 	mux.HandleFunc("GET /api/focus/contents", HandleFocusContents)
+	mux.HandleFunc("GET /api/plans", HandleGetPlans)
+	mux.HandleFunc("POST /api/plans", HandlePostPlan)
+	mux.HandleFunc("PUT /api/plans", HandlePutPlan)
+	mux.HandleFunc("DELETE /api/plans", HandleDeletePlan)
+	mux.HandleFunc("POST /api/plans/promote", HandlePromotePlan)
 
 	// 4. PRs, Issues, Recents
 	mux.HandleFunc("GET /api/recents", HandleGetRecents)
