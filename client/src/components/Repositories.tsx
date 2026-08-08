@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import useAppStore from '../store/useAppStore';
 import { useToast } from './Toast';
+import { confirmDialog } from '../helper/confirm';
 
 export default function Repositories() {
   const toast = useToast();
@@ -132,11 +133,20 @@ export default function Repositories() {
 
                 <button
                   className="delete-btn"
-                  style={{ padding: '4px 8px', borderRadius: 6, alignSelf: 'center' }}
-                  onClick={() => {
-                    if (window.confirm(`Remove repository: ${repo.name}?`)) {
-                      useAppStore.getState().deleteRepo({ path: repo.path || '', owner: repo.owner || '', name: repo.name || '' });
-                      toast(`Removed ${repo.name}`, 'info');
+                  onClick={async () => {
+                    console.log("delete is clicked")
+                    const confirmed = await confirmDialog('Remove Repository', `Remove repository: ${repo.name}?`);
+                    if (confirmed) {
+                      try {
+                        await useAppStore.getState().deleteRepo({
+                          path: repo.path || '',
+                          owner: repo.owner || '',
+                          name: repo.name || '',
+                        });
+                        toast(`Removed ${repo.name}`, 'info');
+                      } catch (err) {
+                        toast(err.message, 'error');
+                      }
                     }
                   }}
                 >

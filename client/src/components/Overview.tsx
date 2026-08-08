@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import useAppStore, { apiFetch } from '../store/useAppStore';
+import useAppStore from '../store/useAppStore';
 import { useToast } from './Toast';
 
 const ITEMS_PER_PAGE = 4;
@@ -192,31 +192,20 @@ export default function Overview() {
   const focusProject    = useAppStore(s => s.focusProject);
   const setActiveTab    = useAppStore(s => s.setActiveTab);
 
-  const [data, setData]                       = useState(null);
-  const [loading, setLoading]                 = useState(true);
-  const [contributions, setContributions]     = useState(null);
-  const [loadingContribs, setLoadingContribs] = useState(true);
-  const [localContribs, setLocalContribs]     = useState(null);
-  const [loadingLocal, setLoadingLocal]       = useState(true);
+  const data            = useAppStore(s => s.overviewRecents);
+  const contributions   = useAppStore(s => s.overviewContributions);
+  const localContribs   = useAppStore(s => s.overviewLocalContributions);
+
+  const loading         = !data;
+  const loadingContribs = !contributions;
+  const loadingLocal     = !localContribs;
+
   const [activeGraph, setActiveGraph]         = useState('github');
   const [prPage, setPrPage]                   = useState(0);
   const [issuePage, setIssuePage]             = useState(0);
 
   useEffect(() => {
-    apiFetch('/api/recents')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
-
-    apiFetch('/api/contributions')
-      .then(r => r.json())
-      .then(c => { setContributions(c); setLoadingContribs(false); })
-      .catch(() => setLoadingContribs(false));
-
-    apiFetch('/api/contributions/local')
-      .then(r => r.json())
-      .then(c => { setLocalContribs(c); setLoadingLocal(false); })
-      .catch(() => setLoadingLocal(false));
+    useAppStore.getState().loadOverviewData();
   }, []);
 
   // Derived values

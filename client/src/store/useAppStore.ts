@@ -17,6 +17,10 @@ const useAppStore = create((set, get) => ({
   isLoadingRepos: false,
   sidebarCollapsed: false,
   githubRepoCount: 0,
+  confirmModal: null, // { title, message, resolve }
+  overviewRecents: null,
+  overviewContributions: null,
+  overviewLocalContributions: null,
   tabEnergies: {
     overview: 'all',
     repositories: 'all',
@@ -33,6 +37,16 @@ const useAppStore = create((set, get) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveEnergy: (energy) => set({ activeEnergy: energy }),
   toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  confirm: (title, message) => new Promise((resolve) => {
+    set({ confirmModal: { title, message, resolve } });
+  }),
+  resolveConfirm: (value) => {
+    const { confirmModal } = get();
+    if (confirmModal) {
+      confirmModal.resolve(value);
+      set({ confirmModal: null });
+    }
+  },
 
   loadRepos: async () => {
     set({ isLoadingRepos: true });
@@ -96,14 +110,19 @@ const useAppStore = create((set, get) => ({
 
   deleteRepo: async ({ path, owner, name }) => {
     try {
-      await apiFetch('/api/repos', {
+      const res = await apiFetch('/api/repos', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path, owner, name }),
       });
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.error || 'Failed to delete repository.');
+      }
       await get().loadRepos();
     } catch (err) {
       console.error(err);
+      throw err;
     }
   },
 
@@ -139,6 +158,22 @@ const useAppStore = create((set, get) => ({
     } catch (err) {
       console.error(err);
     }
+  },
+
+  loadOverviewData: async () => {
+    const p1 = apiFetch('/api/recents')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) set({ overviewRecents: d }); });
+
+    const p2 = apiFetch('/api/contributions')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) set({ overviewContributions: d }); });
+
+    const p3 = apiFetch('/api/contributions/local')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) set({ overviewLocalContributions: d }); });
+
+    await Promise.allSettled([p1, p2, p3]);
   },
 }));
 

@@ -4,58 +4,70 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"stitch/internal/server/build"
+	"stitch/internal/server/contributions"
+	"stitch/internal/server/focus"
+	"stitch/internal/server/ideas"
+	"stitch/internal/server/monitor"
+	"stitch/internal/server/plans"
+	"stitch/internal/server/profile"
+	"stitch/internal/server/projects"
+	"stitch/internal/server/releases"
+	"stitch/internal/server/repos"
+	"stitch/internal/server/roadmap"
 )
 
 func Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// 1. Repos (GET, POST, DELETE)
-	mux.HandleFunc("GET /api/repos", HandleGetRepos)
-	mux.HandleFunc("POST /api/repos", HandlePostRepos)
-	mux.HandleFunc("DELETE /api/repos", HandleDeleteRepos)
-	mux.HandleFunc("POST /api/repos/toggle-major", HandleToggleMajor)
-	mux.HandleFunc("POST /api/repos/set-focus", HandleSetFocus)
+	mux.HandleFunc("GET /api/repos", repos.HandleGetRepos)
+	mux.HandleFunc("POST /api/repos", repos.HandlePostRepos)
+	mux.HandleFunc("DELETE /api/repos", repos.HandleDeleteRepos)
+	mux.HandleFunc("POST /api/repos/toggle-major", repos.HandleToggleMajor)
+	mux.HandleFunc("POST /api/repos/set-focus", repos.HandleSetFocus)
 
 	// 2. Details, Roadmap, Releases
-	mux.HandleFunc("GET /api/projects/details", HandleProjectDetails)
-	mux.HandleFunc("GET /api/roadmap", HandleGetRoadmap)
-	mux.HandleFunc("POST /api/roadmap/add", HandlePostRoadmapAdd)
-	mux.HandleFunc("GET /api/releases", HandleGetReleases)
-	mux.HandleFunc("POST /api/release/create", HandlePostReleaseCreate)
+	mux.HandleFunc("GET /api/projects/details", projects.HandleProjectDetails)
+	mux.HandleFunc("GET /api/roadmap", roadmap.HandleGetRoadmap)
+	mux.HandleFunc("POST /api/roadmap/add", roadmap.HandlePostRoadmapAdd)
+	mux.HandleFunc("GET /api/releases", releases.HandleGetReleases)
+	mux.HandleFunc("POST /api/release/create", releases.HandlePostReleaseCreate)
 
 	// 3. Focus Area
-	mux.HandleFunc("GET /api/focus/info", HandleFocusInfo)
-	mux.HandleFunc("GET /api/focus/contents", HandleFocusContents)
-	mux.HandleFunc("GET /api/ideas", HandleGetIdeasFiles)
-	mux.HandleFunc("GET /api/ideas/file", HandleGetIdeasFile)
-	mux.HandleFunc("POST /api/ideas/file", HandlePostIdeasFile)
-	mux.HandleFunc("DELETE /api/ideas/file", HandleDeleteIdeasFile)
-	mux.HandleFunc("GET /api/plans", HandleGetPlans)
-	mux.HandleFunc("POST /api/plans", HandlePostPlan)
-	mux.HandleFunc("PUT /api/plans", HandlePutPlan)
-	mux.HandleFunc("DELETE /api/plans", HandleDeletePlan)
-	mux.HandleFunc("POST /api/plans/promote", HandlePromotePlan)
+	mux.HandleFunc("GET /api/focus/info", focus.HandleFocusInfo)
+	mux.HandleFunc("GET /api/focus/contents", focus.HandleFocusContents)
+	mux.HandleFunc("GET /api/ideas", ideas.HandleGetIdeasFiles)
+	mux.HandleFunc("GET /api/ideas/file", ideas.HandleGetIdeasFile)
+	mux.HandleFunc("POST /api/ideas/file", ideas.HandlePostIdeasFile)
+	mux.HandleFunc("DELETE /api/ideas/file", ideas.HandleDeleteIdeasFile)
+	mux.HandleFunc("GET /api/plans", plans.HandleGetPlans)
+	mux.HandleFunc("POST /api/plans", plans.HandlePostPlan)
+	mux.HandleFunc("PUT /api/plans", plans.HandlePutPlan)
+	mux.HandleFunc("DELETE /api/plans", plans.HandleDeletePlan)
+	mux.HandleFunc("POST /api/plans/promote", plans.HandlePromotePlan)
 
 	// 4. PRs, Issues, Recents
-	mux.HandleFunc("GET /api/recents", HandleGetRecents)
-	mux.HandleFunc("GET /api/prs", HandleGetPrs)
-	mux.HandleFunc("GET /api/issues", HandleGetIssues)
+	mux.HandleFunc("GET /api/recents", contributions.HandleGetRecents)
+	mux.HandleFunc("GET /api/prs", contributions.HandleGetPrs)
+	mux.HandleFunc("GET /api/issues", contributions.HandleGetIssues)
 
 	// 5. Builds & Tasks (SSE)
-	mux.HandleFunc("GET /api/build/run", HandleBuildRun)
+	mux.HandleFunc("GET /api/build/run", build.HandleBuildRun)
 
 	// 6. Contributions (GitHub and Local Commits)
-	mux.HandleFunc("GET /api/contributions", HandleGetGitHubContributions)
-	mux.HandleFunc("GET /api/contributions/local", HandleGetLocalContributions)
+	mux.HandleFunc("GET /api/contributions", contributions.HandleGetGitHubContributions)
+	mux.HandleFunc("GET /api/contributions/local", contributions.HandleGetLocalContributions)
 
 	// 7. Profile & Settings
-	mux.HandleFunc("GET /api/profile", HandleGetProfile)
-	mux.HandleFunc("POST /api/profile/git", HandlePostProfileGit)
-	mux.HandleFunc("POST /api/config/tab-energies", HandlePostTabEnergies)
+	mux.HandleFunc("GET /api/profile", profile.HandleGetProfile)
+	mux.HandleFunc("POST /api/profile/git", profile.HandlePostProfileGit)
+	mux.HandleFunc("POST /api/config/tab-energies", repos.HandlePostTabEnergies)
 
 	// 8. Provider Disk Monitor
-	mux.HandleFunc("GET /api/provider/{provider}/disk", HandleGetProviderDisk)
-	mux.HandleFunc("DELETE /api/provider/{provider}/media", HandleDeleteProviderMedia)
+	mux.HandleFunc("GET /api/provider/{provider}/disk", monitor.HandleGetProviderDisk)
+	mux.HandleFunc("DELETE /api/provider/{provider}/media", monitor.HandleDeleteProviderMedia)
 
 	// Static client file hosting (Vite build target)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
