@@ -7,7 +7,11 @@ export const apiFetch = (url, options = {}) => {
   return fetch(`${baseUrl}${url}`, options);
 };
 
-const useAppStore = create((set, get) => ({
+interface AppState {
+  [key: string]: any;
+}
+
+const useAppStore = create<AppState>((set, get) => ({
   // ── State ────────────────────────────────────────────
   repos: [],
   currentUser: '',

@@ -230,7 +230,7 @@ export default function AIMonitor() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                         No active conversation directories detected.
                       </td>
                     </tr>

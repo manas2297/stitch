@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import useAppStore, { apiFetch } from '../store/useAppStore';
 
 function ageBadge(dateStr) {
-  const days = (Date.now() - new Date(dateStr)) / 86400000;
+  const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
   if (days < 2)  return { cls: 'age-fresh',  label: 'Today' };
   if (days < 7)  return { cls: 'age-recent', label: `${Math.floor(days)}d ago` };
   if (days < 30) return { cls: 'age-aging',  label: `${Math.floor(days)}d ago` };
@@ -121,7 +121,7 @@ export default function Issues() {
               onChange={(e) => setLabelFilter(e.target.value)}
             >
               <option value="">All Labels</option>
-              {allLabels.map((l) => <option key={l} value={l}>{l}</option>)}
+              {allLabels.map((l) => <option key={l as string} value={l as string}>{l as string}</option>)}
             </select>
           )}
           <span className="result-count">{filtered.length} of {issues.length}</span>
@@ -152,12 +152,12 @@ export default function Issues() {
                   <span className={`age-badge ${age.cls}`}>{age.label}</span>
                   {issue.labels?.map((l, j) => (
                     <span
-                      key={j}
+                      key={String(l.name)}
                       className="badge"
                       style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', textTransform: 'none', cursor: 'pointer' }}
                       onClick={() => setLabelFilter(l.name === labelFilter ? '' : l.name)}
                     >
-                      {l.name}
+                      {String(l.name)}
                     </span>
                   ))}
                 </div>

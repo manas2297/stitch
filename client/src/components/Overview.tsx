@@ -7,7 +7,7 @@ const ITEMS_PER_PAGE = 4;
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function ageBadge(dateStr) {
-  const days = (Date.now() - new Date(dateStr)) / 86400000;
+  const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
   if (days < 2)  return { cls: 'age-fresh',  label: 'Today' };
   if (days < 7)  return { cls: 'age-recent', label: `${Math.floor(days)}d ago` };
   if (days < 30) return { cls: 'age-aging',  label: `${Math.floor(days)}d ago` };

@@ -103,7 +103,7 @@ export default function Releases() {
               </div>
               <div>
                 <label>Release Notes</label>
-                <textarea rows="6" placeholder="Describe the changes..." required value={modal.notes} onChange={(e) => setModal({ ...modal, notes: e.target.value })} />
+                <textarea rows={6} placeholder="Describe the changes..." required value={modal.notes} onChange={(e) => setModal({ ...modal, notes: e.target.value })} />
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Cancel</button>

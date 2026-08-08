@@ -37,7 +37,7 @@ export default function FocusWorkspace() {
     const res = await apiFetch(`/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`);
     const items = await res.json();
     if (Array.isArray(items)) {
-      items.sort((a, b) => (b.type === 'dir') - (a.type === 'dir'));
+      items.sort((a, b) => (b.type === 'dir' ? 1 : 0) - (a.type === 'dir' ? 1 : 0));
       setExplorerItems(items);
     }
   };

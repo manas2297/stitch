@@ -40,7 +40,7 @@ export default function Repositories() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
-              const input = e.target.elements.repoPathInput;
+              const input = (e.target as any).elements.repoPathInput;
               const pathVal = input.value.trim();
               if (!pathVal) return;
               try {

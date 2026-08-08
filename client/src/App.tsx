@@ -183,7 +183,7 @@ function EnergyPanel({ activeEnergy, setActiveEnergy }) {
           '--fab-glow': cfg.glow,
           '--fab-bg': cfg.bg,
           '--fab-border': cfg.border,
-        }}
+        } as React.CSSProperties}
         onClick={() => setOpen(v => !v)}
         aria-label={`Energy mode: ${cfg.label}`}
         title={`Current mode: ${cfg.label}. Click to switch.`}
@@ -222,9 +222,10 @@ export default function App() {
     const handleExternalLinks = (e) => {
       const anchor = e.target.closest('a');
       if (anchor && (anchor.target === '_blank' || anchor.href.startsWith('http'))) {
-        if (window.go?.main?.App) {
+        const appBinding = window.go?.desktop?.App;
+        if (appBinding) {
           e.preventDefault();
-          window.go.main.App.OpenURL(anchor.href);
+          appBinding.OpenURL(anchor.href);
         }
       }
     };

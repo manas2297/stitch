@@ -347,7 +347,7 @@ export default function Profile() {
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: selectedMissing ? '1.5rem' : 0 }}>
               {profile?.runtimes && Object.entries(profile.runtimes).map(([key, val]) => {
-                const cleanedVal = val.trim();
+                const cleanedVal = typeof val === 'string' ? val.trim() : String(val || '').trim();
                 const installed  = cleanedVal !== '' && cleanedVal !== 'Not Installed';
                 const isSelected = selectedMissing === key;
 
@@ -459,7 +459,7 @@ export default function Profile() {
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {tabId}</span>
                 </div>
                 <select
-                  value={currentEnergy}
+                  value={currentEnergy as string}
                   onChange={(e) => setLocalTabEnergies(prev => ({ ...prev, [tabId]: e.target.value }))}
                   className="mode-select-dropdown"
                   style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'var(--text-color)', borderRadius: 8, padding: '6px 12px', fontSize: '0.8rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
