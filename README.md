@@ -16,9 +16,9 @@ stitch/
       desktop/              ← Wails app setup & browser runtime bindings
       server/               ← REST API server endpoints & Git logic
   config.json               ← Local database of tracked repos (gitignored)
-  client/                   ← Vite + React frontend app
+  client/                   ← Vite + React + TypeScript frontend app
     src/
-      store/useAppStore.js  ← Zustand global state + apiFetch routing wrapper
+      store/useAppStore.ts  ← Zustand global state + apiFetch routing wrapper
       components/           ← Tab panels & UI elements (Overview, Repositories, Profile...)
 ```
 
@@ -95,10 +95,10 @@ cd backend
 ### 3. Packaging standalone Stitch.app
 To build the final production-ready application bundle:
 ```bash
-# 1. Compile frontend client assets
-cd client && npm run build
+# 1. Compile frontend client assets (from project root)
+npm run build:client
 
 # 2. Package the app bundle
-cd .. && ~/go/bin/wails build -s
+cd backend && ~/go/bin/wails build -s
 ```
 Your compiled native bundle is created under: **`build/bin/Stitch.app`**.
