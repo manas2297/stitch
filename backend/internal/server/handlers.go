@@ -370,7 +370,7 @@ func HandleProjectDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	issuesRes := shell.RunCmd(fmt.Sprintf(`gh issue list --repo "%s/%s" --json number,title,author,url,createdAt,labels --limit 50`, owner, name), "")
-	prsRes := shell.RunCmd(fmt.Sprintf(`gh pr list --repo "%s/%s" --json number,title,author,url,createdAt,reviewRequests,reviewDecision --limit 30`, owner, name), "")
+	prsRes := shell.RunCmd(fmt.Sprintf(`gh pr list --repo "%s/%s" --state all --json number,title,author,url,createdAt,reviewRequests,reviewDecision,state --limit 30`, owner, name), "")
 	tagRes := shell.RunCmd(fmt.Sprintf(`gh api repos/%s/%s/releases/latest --jq .tag_name`, owner, name), "")
 
 	var rawIssues []map[string]interface{}
@@ -1721,4 +1721,229 @@ func HandleDeleteProviderMedia(w http.ResponseWriter, r *http.Request) {
 		"deleted":    deleted,
 		"freedBytes": freedBytes,
 	})
+}
+
+// HandleGetIdeasFiles lists all markdown/text files in the repo's ideas folder.
+func HandleGetIdeasFiles(w http.ResponseWriter, r *http.Request) {
+	owner := r.URL.Query().Get("owner")
+	name := r.URL.Query().Get("name")
+	if owner == "" || name == "" {
+		http.Error(w, `{"error":"owner and name are required."}`, http.StatusBadRequest)
+		return
+	}
+
+	cfg := config.Read()
+	var activeRepo *models.Repo
+	for i := range cfg.Repos {
+		repo := &cfg.Repos[i]
+		if repo.Owner == owner && repo.Name == name {
+			activeRepo = repo
+			break
+		}
+	}
+
+	if activeRepo == nil {
+		http.Error(w, `{"error":"Repository not found in workspace."}`, http.StatusNotFound)
+		return
+	}
+
+	var dirPath string
+	if activeRepo.Path != "" {
+		dirPath = filepath.Join(activeRepo.Path, "ideas")
+	} else {
+		homedir, _ := os.UserHomeDir()
+		dirPath = filepath.Join(homedir, ".stitch", "ideas", owner+"-"+name)
+	}
+
+	// Create directory if it doesn't exist
+	os.MkdirAll(dirPath, 0755)
+
+	type IdeaFile struct {
+		Filename string `json:"filename"`
+		Size     int64  `json:"size"`
+		Modified string `json:"modified"`
+	}
+	filesList := []IdeaFile{}
+
+	if entries, err := os.ReadDir(dirPath); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				ext := strings.ToLower(filepath.Ext(e.Name()))
+				if ext == ".md" || ext == ".txt" {
+					info, err := e.Info()
+					modStr := ""
+					size := int64(0)
+					if err == nil {
+						modStr = info.ModTime().Format("2006-01-02 15:04:05")
+						size = info.Size()
+					}
+					filesList = append(filesList, IdeaFile{
+						Filename: e.Name(),
+						Size:     size,
+						Modified: modStr,
+					})
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"files": filesList})
+}
+
+// HandleGetIdeasFile returns the contents of a specific ideas file.
+func HandleGetIdeasFile(w http.ResponseWriter, r *http.Request) {
+	owner := r.URL.Query().Get("owner")
+	name := r.URL.Query().Get("name")
+	filename := r.URL.Query().Get("filename")
+	if owner == "" || name == "" || filename == "" {
+		http.Error(w, `{"error":"owner, name, and filename are required."}`, http.StatusBadRequest)
+		return
+	}
+
+	// Basic security check to prevent path traversal
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		http.Error(w, `{"error":"Invalid filename."}`, http.StatusBadRequest)
+		return
+	}
+
+	cfg := config.Read()
+	var activeRepo *models.Repo
+	for i := range cfg.Repos {
+		repo := &cfg.Repos[i]
+		if repo.Owner == owner && repo.Name == name {
+			activeRepo = repo
+			break
+		}
+	}
+
+	if activeRepo == nil {
+		http.Error(w, `{"error":"Repository not found in workspace."}`, http.StatusNotFound)
+		return
+	}
+
+	var dirPath string
+	if activeRepo.Path != "" {
+		dirPath = filepath.Join(activeRepo.Path, "ideas")
+	} else {
+		homedir, _ := os.UserHomeDir()
+		dirPath = filepath.Join(homedir, ".stitch", "ideas", owner+"-"+name)
+	}
+
+	filePath := filepath.Join(dirPath, filename)
+	content := ""
+	if _, err := os.Stat(filePath); err == nil {
+		bytes, err := os.ReadFile(filePath)
+		if err == nil {
+			content = string(bytes)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"content": content})
+}
+
+// HandlePostIdeasFile writes content to a specific ideas file.
+func HandlePostIdeasFile(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Owner    string `json:"owner"`
+		Name     string `json:"name"`
+		Filename string `json:"filename"`
+		Content  string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Owner == "" || body.Name == "" || body.Filename == "" {
+		http.Error(w, `{"error":"owner, name, filename, and content are required."}`, http.StatusBadRequest)
+		return
+	}
+
+	if strings.Contains(body.Filename, "..") || strings.Contains(body.Filename, "/") || strings.Contains(body.Filename, "\\") {
+		http.Error(w, `{"error":"Invalid filename."}`, http.StatusBadRequest)
+		return
+	}
+
+	cfg := config.Read()
+	var activeRepo *models.Repo
+	for i := range cfg.Repos {
+		repo := &cfg.Repos[i]
+		if repo.Owner == body.Owner && repo.Name == body.Name {
+			activeRepo = repo
+			break
+		}
+	}
+
+	if activeRepo == nil {
+		http.Error(w, `{"error":"Repository not found in workspace."}`, http.StatusNotFound)
+		return
+	}
+
+	var dirPath string
+	if activeRepo.Path != "" {
+		dirPath = filepath.Join(activeRepo.Path, "ideas")
+	} else {
+		homedir, _ := os.UserHomeDir()
+		dirPath = filepath.Join(homedir, ".stitch", "ideas", body.Owner+"-"+body.Name)
+	}
+
+	os.MkdirAll(dirPath, 0755)
+	filePath := filepath.Join(dirPath, body.Filename)
+
+	err := os.WriteFile(filePath, []byte(body.Content), 0644)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"Failed to save file.","details":"%s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+// HandleDeleteIdeasFile deletes a specific ideas file.
+func HandleDeleteIdeasFile(w http.ResponseWriter, r *http.Request) {
+	owner := r.URL.Query().Get("owner")
+	name := r.URL.Query().Get("name")
+	filename := r.URL.Query().Get("filename")
+	if owner == "" || name == "" || filename == "" {
+		http.Error(w, `{"error":"owner, name, and filename are required."}`, http.StatusBadRequest)
+		return
+	}
+
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		http.Error(w, `{"error":"Invalid filename."}`, http.StatusBadRequest)
+		return
+	}
+
+	cfg := config.Read()
+	var activeRepo *models.Repo
+	for i := range cfg.Repos {
+		repo := &cfg.Repos[i]
+		if repo.Owner == owner && repo.Name == name {
+			activeRepo = repo
+			break
+		}
+	}
+
+	if activeRepo == nil {
+		http.Error(w, `{"error":"Repository not found in workspace."}`, http.StatusNotFound)
+		return
+	}
+
+	var dirPath string
+	if activeRepo.Path != "" {
+		dirPath = filepath.Join(activeRepo.Path, "ideas")
+	} else {
+		homedir, _ := os.UserHomeDir()
+		dirPath = filepath.Join(homedir, ".stitch", "ideas", owner+"-"+name)
+	}
+
+	filePath := filepath.Join(dirPath, filename)
+	if _, err := os.Stat(filePath); err == nil {
+		err = os.Remove(filePath)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Failed to delete file.","details":"%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }

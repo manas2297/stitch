@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../store/useAppStore';
 import Roadmap from './Roadmap';
+import IdeasEditor from './IdeasEditor';
 
 const escapeHtml = (text = '') =>
   text.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
@@ -9,6 +10,8 @@ const TABS = [
   { id: 'features', label: '💡 Features' },
   { id: 'bugs', label: '🐛 Bugs' },
   { id: 'reviews', label: '👀 Reviews' },
+  { id: 'closed-prs', label: '✅ Closed PRs' },
+  { id: 'ideas', label: '🧠 Ideas' },
   { id: 'issues', label: '📋 Issues' },
   { id: 'roadmap', label: '🗺️ Roadmap' },
 ];
@@ -21,7 +24,7 @@ function IssueList({ items, emptyMsg }) {
     <div key={issue.number} className="list-item" style={{ marginBottom: 8 }}>
       <div className="item-left">
         <a href={issue.url} target="_blank" rel="noreferrer" className="item-title">
-          #{issue.number} {issue.title}
+          <span className="pr-number">#{issue.number}</span> <span className="pr-title-text">{issue.title}</span>
         </a>
         <div className="item-subtitle">
           by @{issue.author?.login || '?'} · {new Date(issue.createdAt).toLocaleDateString()}
@@ -38,21 +41,30 @@ function IssueList({ items, emptyMsg }) {
 
 function PRList({ prs }) {
   if (!prs || prs.length === 0) {
-    return <div style={{ color: 'var(--text-muted)', padding: '1rem 0', fontSize: '0.9rem' }}>No open pull requests.</div>;
+    return <div style={{ color: 'var(--text-muted)', padding: '1rem 0', fontSize: '0.9rem' }}>No pull requests found.</div>;
   }
-  return prs.map((pr) => (
-    <div key={pr.number} className="list-item" style={{ marginBottom: 8 }}>
-      <div className="item-left">
-        <a href={pr.url} target="_blank" rel="noreferrer" className="item-title">
-          #{pr.number} {pr.title}
-        </a>
-        <div className="item-subtitle">by @{pr.author?.login || '?'} · {new Date(pr.createdAt).toLocaleDateString()}</div>
+  return prs.map((pr) => {
+    let statusBadge = <span className="badge badge-blue">Open</span>;
+    if (pr.state === 'MERGED') {
+      statusBadge = <span className="badge badge-purple">Merged</span>;
+    } else if (pr.state === 'CLOSED') {
+      statusBadge = <span className="badge badge-red">Closed</span>;
+    } else if (pr.reviewRequests?.length > 0) {
+      statusBadge = <span className="badge badge-orange">Review Requested</span>;
+    }
+
+    return (
+      <div key={pr.number} className="list-item" style={{ marginBottom: 8 }}>
+        <div className="item-left">
+          <a href={pr.url} target="_blank" rel="noreferrer" className="item-title">
+            <span className="pr-number">#{pr.number}</span> <span className="pr-title-text">{pr.title}</span>
+          </a>
+          <div className="item-subtitle">by @{pr.author?.login || '?'} · {new Date(pr.createdAt).toLocaleDateString()}</div>
+        </div>
+        {statusBadge}
       </div>
-      {pr.reviewRequests?.length > 0
-        ? <span className="badge badge-orange">Review Requested</span>
-        : <span className="badge badge-blue">Open</span>}
-    </div>
-  ));
+    );
+  });
 }
 
 export default function ProjectDetail({ repo, onBack }) {
@@ -94,7 +106,9 @@ export default function ProjectDetail({ repo, onBack }) {
   const tabCounts = {
     features: details.features.length,
     bugs: details.bugs.length,
-    reviews: details.prs.length,
+    reviews: (details.prs || []).filter((pr) => pr.state === 'OPEN').length,
+    'closed-prs': (details.prs || []).filter((pr) => pr.state === 'CLOSED' || pr.state === 'MERGED').length,
+    ideas: '✎',
     issues: details.general.length,
     roadmap: roadmap.tasks.length,
   };
@@ -143,7 +157,11 @@ export default function ProjectDetail({ repo, onBack }) {
         {activeInnerTab === 'bugs' && (
           <IssueList items={details.bugs} emptyMsg="No bug issues found. Great news! 🎉" />
         )}
-        {activeInnerTab === 'reviews' && <PRList prs={details.prs} />}
+        {activeInnerTab === 'reviews' && <PRList prs={(details.prs || []).filter((pr) => pr.state === 'OPEN')} />}
+        {activeInnerTab === 'closed-prs' && <PRList prs={(details.prs || []).filter((pr) => pr.state === 'CLOSED' || pr.state === 'MERGED')} />}
+        {activeInnerTab === 'ideas' && (
+          <IdeasEditor owner={repo.owner} name={repo.name} />
+        )}
         {activeInnerTab === 'issues' && (
           <IssueList items={details.general} emptyMsg="No general open issues." />
         )}

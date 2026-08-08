@@ -2517,13 +2517,13 @@ main.sidebar-collapsed {
   gap: 1rem;
 }
 
-.list-item {
+.monitor-list-item {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.list-item-header {
+.monitor-list-item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2674,4 +2674,349 @@ main.sidebar-collapsed {
 .cleanup-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Muted design for PR/Issue numbers */
+.pr-number {
+  color: var(--text-muted);
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-right: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Ideas Markdown Editor Styles
+   ========================================================================== */
+
+.ideas-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  gap: 1rem;
+}
+
+.ideas-editor-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.ideas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tb-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tb-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-color);
+}
+
+.tb-btn.mode-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 12px;
+}
+
+.tb-btn.mode-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.ideas-workspace {
+  display: flex;
+  width: 100%;
+  height: 480px;
+}
+
+.workspace-panel {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.edit-panel {
+  display: flex;
+  border-right: 1px solid var(--border-color);
+}
+
+.ideas-textarea {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-color);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding: 1rem;
+  resize: none;
+  outline: none;
+}
+
+.preview-panel {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.005);
+}
+
+/* Tab Mode Adjustments */
+.ideas-workspace.mode-edit .preview-panel {
+  display: none;
+}
+
+.ideas-workspace.mode-preview .edit-panel {
+  display: none;
+}
+
+.ideas-workspace.mode-split .edit-panel {
+  flex: 1;
+}
+
+.ideas-workspace.mode-split .preview-panel {
+  flex: 1;
+}
+
+/* Markdown Preview Typography */
+.markdown-preview {
+  color: var(--text-color);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.preview-h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.3rem;
+  color: white;
+}
+
+.preview-h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.8rem 0;
+  color: white;
+}
+
+.preview-h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.2rem 0 0.6rem 0;
+  color: white;
+}
+
+.preview-code {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #f43f5e;
+}
+
+.preview-pre {
+  background: #090b10;
+  border: 1px solid var(--border-color);
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: monospace;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.preview-pre code {
+  color: #a9b1d6;
+  font-size: 0.85rem;
+}
+
+.preview-li-checkbox {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-empty {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-align: center;
+  margin-top: 4rem;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+}
+
+/* Ideas List Mode Dashboard */
+.ideas-list-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.list-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-title-box h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: white;
+  margin: 0 0 0.25rem 0;
+}
+
+.header-title-box p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.create-file-form {
+  display: flex;
+  gap: 8px;
+}
+
+.ideas-files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.idea-file-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: auto;
+  min-height: 110px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.idea-file-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.file-icon {
+  font-size: 1.2rem;
+}
+
+.file-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-color);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.delete-file-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.idea-file-card:hover .delete-file-btn {
+  opacity: 1;
+}
+
+.delete-file-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1rem;
+}
+
+.no-files-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.back-to-list-btn {
+  margin-right: 0.5rem;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.back-to-list-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
