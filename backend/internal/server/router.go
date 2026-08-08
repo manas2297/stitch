@@ -49,6 +49,10 @@ func Routes() http.Handler {
 	mux.HandleFunc("POST /api/profile/git", HandlePostProfileGit)
 	mux.HandleFunc("POST /api/config/tab-energies", HandlePostTabEnergies)
 
+	// 8. Provider Disk Monitor
+	mux.HandleFunc("GET /api/provider/{provider}/disk", HandleGetProviderDisk)
+	mux.HandleFunc("DELETE /api/provider/{provider}/media", HandleDeleteProviderMedia)
+
 	// Static client file hosting (Vite build target)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Serve index.html if file doesn't exist

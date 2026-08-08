@@ -11,6 +11,7 @@ import Issues from './components/Issues';
 import Builds from './components/Builds';
 import Repositories from './components/Repositories';
 import Profile from './components/Profile';
+import AIMonitor from './components/AIMonitor';
 
 const TABS = [
   { id: 'overview',     label: 'Overview',       icon: 'overview'     },
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'pr-reviews',   label: 'PR Reviews',      icon: 'pr-reviews'   },
   { id: 'issues',       label: 'Issues',          icon: 'issues'       },
   { id: 'builds',       label: 'Fix Builds',      icon: 'builds'       },
+  { id: 'ai-monitor',   label: 'AI Monitor',      icon: 'gemini-monitor'},
   { id: 'profile',      label: 'Profile',         icon: 'profile'      },
 ];
 
@@ -257,6 +259,7 @@ export default function App() {
       case 'pr-reviews':   return <PRReviews />;
       case 'issues':       return <Issues />;
       case 'builds':       return <Builds />;
+      case 'ai-monitor':   return <AIMonitor />;
       case 'profile':      return <Profile />;
       default:             return null;
     }
