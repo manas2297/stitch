@@ -83,7 +83,10 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```
 
 ### 2. Wails Development Mode (Live-Reload GUI)
-This boots the desktop app window directly with hot-reload enabled for both Go changes and React/CSS updates:
+This boots the desktop app window directly with hot-reload enabled for both Go changes and React/CSS updates.
+
+**Note**: Before running `wails dev` on a fresh clone, make sure you have run `npm install` from the repo root (no global Vite install required) and have copied `config.example.json` to `config.json`.
+
 ```bash
 # Navigate to the backend directory
 cd backend
