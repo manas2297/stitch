@@ -211,6 +211,8 @@ export default function App() {
     sidebarCollapsed,
     tabEnergies,
     githubRepoCount,
+    confirmModal,
+    resolveConfirm,
   } = useAppStore();
 
   useEffect(() => {
@@ -301,6 +303,62 @@ export default function App() {
 
       {/* Floating energy mode panel — always on top, bottom-right */}
       <EnergyPanel activeEnergy={activeEnergy} setActiveEnergy={setActiveEnergy} />
+
+      {confirmModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '380px',
+            padding: '1.5rem',
+            borderRadius: '16px',
+            background: 'var(--panel-bg)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            height: 'auto'
+          }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '-5px' }}>⚠️</div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-color)' }}>
+              {confirmModal.title}
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+              {confirmModal.message}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '0.5rem' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ flex: 1, padding: '10px', fontSize: '0.85rem' }}
+                onClick={() => resolveConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn"
+                style={{ flex: 1, padding: '10px', fontSize: '0.85rem', background: '#e11d48' }}
+                onClick={() => resolveConfirm(true)}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ToastProvider>
   );
 }

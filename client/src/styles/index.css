@@ -626,16 +626,25 @@ main.sidebar-collapsed {
   border-color: rgba(244, 63, 94, 0.3);
 }
 
-.repo-mini-card .delete-btn {
-  background: transparent;
-  border: none;
+.delete-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   color: var(--text-muted);
   cursor: pointer;
   font-size: 0.95rem;
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
-.repo-mini-card .delete-btn:hover {
+.delete-btn:hover {
+  background: rgba(244, 63, 94, 0.2);
   color: var(--error);
+  border-color: rgba(244, 63, 94, 0.4);
+  transform: translateY(-1px);
 }
 
 .repo-form {

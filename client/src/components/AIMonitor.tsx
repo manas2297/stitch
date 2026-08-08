@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../store/useAppStore';
+import { confirmDialog } from '../helper/confirm';
+import { useToast } from './Toast';
 
 const PROVIDERS = [
   { id: 'gemini', label: 'Gemini' },
@@ -19,6 +21,7 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 export default function AIMonitor() {
+  const toast = useToast();
   const [provider, setProvider] = useState('gemini');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -49,7 +52,8 @@ export default function AIMonitor() {
   }, [provider]);
 
   const handleCleanup = async () => {
-    if (!window.confirm(`Are you sure you want to delete all screenshots and recordings in ~/.${provider}?`)) {
+    const confirmed = await confirmDialog('Clean Up Media', `Are you sure you want to delete all screenshots and recordings in ~/.${provider}?`);
+    if (!confirmed) {
       return;
     }
     setCleaning(true);
@@ -61,7 +65,7 @@ export default function AIMonitor() {
         throw new Error(`Failed to clean up media for ${provider}`);
       }
       const result = await response.json();
-      alert(`Cleanup successful! Deleted ${result.deleted} files and freed ${formatBytes(result.freedBytes)}.`);
+      toast(`Cleanup successful! Deleted ${result.deleted} files and freed ${formatBytes(result.freedBytes)}.`, 'success');
       // Refresh data
       loadData(provider);
     } catch (err) {

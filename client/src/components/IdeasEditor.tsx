@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../store/useAppStore';
 import { useToast } from './Toast';
 import { compileMarkdown } from '../helper';
+import { confirmDialog } from '../helper/confirm';
 
 
 function formatBytes(bytes) {
@@ -120,7 +121,8 @@ export default function IdeasEditor({ owner, name }) {
 
   const handleDeleteFile = async (filename, e) => {
     e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to delete ${filename}?`)) {
+    const confirmed = await confirmDialog('Delete File', `Are you sure you want to delete ${filename}?`);
+    if (!confirmed) {
       return;
     }
     try {
@@ -183,12 +185,16 @@ export default function IdeasEditor({ owner, name }) {
   if (activeFile && fileMode == 'view') {
     return (
       <div>
-        <header className="view-header">
-          <div className="view-header-left">
-            <button onClick={() => setActiveFile(null)} className="back-btn">
-              ← Back to List
-            </button>
-          </div>
+        <header className="view-header" style={{ display: 'flex', gap: '8px', marginBottom: '1rem', alignItems: 'center' }}>
+          <button onClick={() => setActiveFile(null)} className="btn btn-secondary back-btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+            ← Back to List
+          </button>
+          <button onClick={() => setFileMode('edit')} className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+            ✎ Edit File
+          </button>
+          <span style={{ marginLeft: '1rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            Viewing: {activeFile}
+          </span>
         </header>
 
         <div className="workspace-panel preview-panel">
@@ -238,7 +244,7 @@ export default function IdeasEditor({ owner, name }) {
             </div>
           ) : (
             files.map((f) => (
-              <div key={f.filename} className="idea-file-card" onClick={() => handleOpenFile(f.filename)}>
+              <div key={f.filename} className="idea-file-card" onClick={() => setFileViewMode('view', f.filename)}>
                 <div className="card-top">
                   <span className="file-icon">📄</span>
                   <span className="file-name">{f.filename}</span>
@@ -251,12 +257,14 @@ export default function IdeasEditor({ owner, name }) {
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Size: {formatBytes(f.size)}</span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Edited: {f.modified || '—'}</span>
                   </div>
-                  <button onClick={() => setFileViewMode('view', f.filename)} className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: '4px' }}>
-                    View
-                  </button>
-                  <button onClick={() => setFileViewMode('edit', f.filename)} className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: '4px' }}>
-                    Edit
-                  </button>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={(e) => { e.stopPropagation(); setFileViewMode('view', f.filename); }} className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: '4px' }}>
+                      View
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setFileViewMode('edit', f.filename); }} className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: '4px' }}>
+                      Edit
+                    </button>
+                  </div>
                 </div>
               </div>
             ))

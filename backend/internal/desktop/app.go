@@ -35,6 +35,21 @@ func (a *App) OpenURL(url string) {
 	runtime.BrowserOpenURL(a.ctx, url)
 }
 
+// ShowConfirmDialog prompts the user with a native Yes/No dialog.
+func (a *App) ShowConfirmDialog(title, message string) bool {
+	resp, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:          runtime.QuestionDialog,
+		Title:         title,
+		Message:       message,
+		DefaultButton: "No",
+	})
+	if err != nil {
+		return false
+	}
+	return resp == "Yes"
+}
+
+
 // GetRepos retrieves tracked repository details.
 func (a *App) GetRepos() []models.Repo {
 	cfg := config.Read()
