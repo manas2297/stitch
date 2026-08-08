@@ -148,8 +148,8 @@ export default function AIMonitor() {
                   const maxSubdirSize = Math.max(...data.subdirectories.map((s) => s.size), 1);
                   const pct = (subdir.size / maxSubdirSize) * 100;
                   return (
-                    <div className="list-item" key={subdir.name}>
-                      <div className="list-item-header">
+                    <div className="monitor-list-item" key={subdir.name}>
+                      <div className="monitor-list-item-header">
                         <span className="item-name">{subdir.name}</span>
                         <span className="item-meta">{formatBytes(subdir.size)}</span>
                       </div>
@@ -176,8 +176,8 @@ export default function AIMonitor() {
                   const maxTypeSize = Math.max(...data.fileTypes.map((t) => t.size), 1);
                   const pct = (type.size / maxTypeSize) * 100;
                   return (
-                    <div className="list-item" key={type.extension}>
-                      <div className="list-item-header">
+                    <div className="monitor-list-item" key={type.extension}>
+                      <div className="monitor-list-item-header">
                         <span className="item-name">
                           <span className="monitor-mono">.{type.extension}</span>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
