@@ -3030,11 +3030,49 @@ main.sidebar-collapsed {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Focus Workspace Pomodoro & Scratchpad */
+/* Professional Focus Workspace (Eye-soothing Dark Theme) */
+.focus-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.25rem;
+}
+
+.focus-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.focus-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.focus-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.focus-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f8fafc;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
 .pomodoro-card {
-  background: linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: #0f172a;
+  border: 1px solid #1e293b;
 }
 
 .pomodoro-display {
@@ -3042,72 +3080,78 @@ main.sidebar-collapsed {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1rem 0;
+  padding: 1.25rem 0;
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+  margin-bottom: 1rem;
 }
 
 .pomodoro-time {
-  font-size: 2.8rem;
+  font-size: 2.75rem;
   font-weight: 700;
-  letter-spacing: 2px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  background: linear-gradient(135deg, #a78bfa 0%, #c084fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
+  letter-spacing: 1px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f8fafc;
 }
 
 .pomodoro-modes {
   display: flex;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.3);
+  gap: 4px;
+  background: #020617;
   padding: 4px;
   border-radius: 8px;
   margin-bottom: 1rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid #1e293b;
 }
 
 .pomodoro-mode-btn {
+  flex: 1;
   background: transparent;
   border: none;
-  color: var(--text-muted);
-  padding: 6px 12px;
+  color: #94a3b8;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.pomodoro-mode-btn:hover {
+  color: #f8fafc;
 }
 
 .pomodoro-mode-btn.active {
-  background: rgba(139, 92, 246, 0.25);
-  color: #c084fc;
+  background: #4f46e5;
+  color: #ffffff;
   font-weight: 600;
-  border: 1px solid rgba(168, 85, 247, 0.4);
 }
 
 .pomodoro-controls {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
   width: 100%;
 }
 
 .pomodoro-btn-main {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-  color: #fff;
+  flex: 2;
+  background: #4f46e5;
+  color: #ffffff;
   border: none;
-  padding: 8px 24px;
-  border-radius: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .pomodoro-btn-main:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+  background: #4338ca;
 }
 
 .pomodoro-stats {
@@ -3116,35 +3160,34 @@ main.sidebar-collapsed {
   align-items: center;
   margin-top: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px dashed var(--border-color);
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  border-top: 1px solid #1e293b;
+  font-size: 0.78rem;
+  color: #94a3b8;
 }
 
 .scratchpad-card {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid var(--border-color);
+  background: #0f172a;
+  border: 1px solid #1e293b;
 }
 
 .scratchpad-textarea {
   width: 100%;
-  min-height: 140px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px;
-  color: var(--text-color);
+  min-height: 120px;
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #f8fafc;
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   resize: vertical;
   line-height: 1.5;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s ease;
 }
 
 .scratchpad-textarea:focus {
   outline: none;
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+  border-color: #6366f1;
 }
 
 .scratchpad-meta {
@@ -3153,28 +3196,28 @@ main.sidebar-collapsed {
   align-items: center;
   margin-top: 8px;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: #64748b;
 }
 
 /* Focus Sub-task Checklist */
 .checklist-card {
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: #0f172a;
+  border: 1px solid #1e293b;
 }
 
 .checklist-progress-bar-bg {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
+  height: 5px;
+  background: #1e293b;
+  border-radius: 3px;
   overflow: hidden;
-  margin: 10px 0 14px 0;
+  margin: 8px 0 14px 0;
 }
 
 .checklist-progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
-  transition: width 0.3s ease;
+  background: #6366f1;
+  transition: width 0.25s ease;
 }
 
 .checklist-input-group {
@@ -3185,45 +3228,86 @@ main.sidebar-collapsed {
 
 .checklist-input {
   flex: 1;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-color);
+  background: #020617;
+  border: 1px solid #1e293b;
   border-radius: 6px;
   padding: 8px 12px;
-  font-size: 0.85rem;
-  color: var(--text-color);
+  font-size: 0.83rem;
+  color: #f8fafc;
+  transition: border-color 0.15s ease;
 }
 
 .checklist-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #6366f1;
+}
+
+.checklist-input::placeholder {
+  color: #64748b;
 }
 
 .checklist-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  background: #020617;
+  border: 1px solid #1e293b;
   border-radius: 6px;
   margin-bottom: 6px;
-  transition: background 0.2s;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .checklist-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  border-color: #334155;
+  background: #090d16;
 }
 
 .checklist-item.completed span {
   text-decoration: line-through;
-  color: var(--text-muted);
+  color: #64748b;
 }
 
 .checklist-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: #6366f1;
 }
+
+/* Badges for PR and Issue Numbers */
+.pr-number-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.issue-number-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+
 
 

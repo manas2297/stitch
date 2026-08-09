@@ -264,12 +264,15 @@ export default function FocusWorkspace() {
                 <h3><span>💡</span> Features to Work On</h3>
                 <div style={{ marginTop: 10 }}>
                   {features.length > 0 ? features.map((f) => (
-                    <div key={f.number} className="list-item" style={{ marginBottom: 8 }}>
-                      <div className="item-left">
-                        <a href={f.url} target="_blank" rel="noreferrer" className="item-title">#{f.number} {f.title}</a>
-                        <span className="item-subtitle">by @{f.author?.login}</span>
+                    <div key={f.number} className="list-item" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <span className="issue-number-badge">#{f.number}</span>
+                        <a href={f.url} target="_blank" rel="noreferrer" className="item-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.title}</a>
                       </div>
-                      <span className="badge badge-purple">Feature</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        <span className="item-subtitle" style={{ fontSize: '0.78rem', color: '#94a3b8' }}>by @{f.author?.login}</span>
+                        <span className="badge badge-purple">Feature</span>
+                      </div>
                     </div>
                   )) : <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No active feature issues.</div>}
                 </div>
@@ -342,10 +345,13 @@ export default function FocusWorkspace() {
                 <h3><span>👀</span> Pull Request Reviews</h3>
                 <div style={{ marginTop: 10 }}>
                   {prs.length > 0 ? prs.map((pr) => (
-                    <div key={pr.number} className="list-item" style={{ marginBottom: 8 }}>
-                      <div className="item-left">
-                        <a href={pr.url} target="_blank" rel="noreferrer" className="item-title">#{pr.number} {pr.title}</a>
-                        <span className="item-subtitle">by @{pr.author?.login}</span>
+                    <div key={pr.number} className="list-item" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <span className="pr-number-badge">#{pr.number}</span>
+                        <a href={pr.url} target="_blank" rel="noreferrer" className="item-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</a>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        <span className="item-subtitle" style={{ fontSize: '0.78rem', color: '#94a3b8' }}>by @{pr.author?.login}</span>
                       </div>
                     </div>
                   )) : <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No active pull request reviews.</div>}
@@ -387,8 +393,8 @@ export default function FocusWorkspace() {
                   </button>
                 </div>
                 <div className="pomodoro-stats">
-                  <span>Sessions Completed: <strong style={{ color: '#c084fc' }}>{completedSessions}</strong> 🏆</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{timerMode === 'work' ? 'Stay Focused!' : 'Take a Break!'}</span>
+                  <span>Sessions Completed: <strong style={{ color: '#818cf8' }}>{completedSessions}</strong> 🏆</span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{timerMode === 'work' ? 'Stay Focused' : 'Take a Break'}</span>
                 </div>
               </div>
 
@@ -413,7 +419,7 @@ export default function FocusWorkspace() {
                 />
                 <div className="scratchpad-meta">
                   <span>{scratchpadText.trim() ? scratchpadText.trim().split(/\s+/).length : 0} words • {scratchpadText.length} chars</span>
-                  <span style={{ color: '#a78bfa' }}>Auto-saved per project</span>
+                  <span style={{ color: '#818cf8' }}>Auto-saved</span>
                 </div>
               </div>
 
