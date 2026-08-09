@@ -12,6 +12,144 @@ export default function FocusWorkspace() {
   const [botOutput, setBotOutput] = useState('');
   const [botRunning, setBotRunning] = useState(false);
 
+  // Pomodoro Focus Timer State
+  const [timerMode, setTimerMode] = useState('work'); // 'work' | 'shortBreak' | 'longBreak'
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [durations, setDurations] = useState({ work: 25, shortBreak: 5, longBreak: 15 });
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [completedSessions, setCompletedSessions] = useState(() => {
+    const saved = localStorage.getItem('stitch_focus_completed_sessions');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Scratchpad State
+  const [scratchpadText, setScratchpadText] = useState('');
+
+  // Sub-task Checklist State
+  const [tasks, setTasks] = useState<{ id: string; text: string; completed: boolean }[]>([]);
+  const [newTaskText, setNewTaskText] = useState('');
+
+  // Load scratchpad & tasks per active project
+  useEffect(() => {
+    if (!focusProject) return;
+    const savedText = localStorage.getItem(`stitch_scratchpad_${focusProject}`);
+    setScratchpadText(savedText || '');
+
+    const savedTasks = localStorage.getItem(`stitch_tasks_${focusProject}`);
+    if (savedTasks) {
+      try { setTasks(JSON.parse(savedTasks)); } catch (e) { setTasks([]); }
+    } else {
+      setTasks([]);
+    }
+  }, [focusProject]);
+
+  const saveTasks = (updated: { id: string; text: string; completed: boolean }[]) => {
+    setTasks(updated);
+    if (focusProject) {
+      localStorage.setItem(`stitch_tasks_${focusProject}`, JSON.stringify(updated));
+    }
+  };
+
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskText.trim()) return;
+    const item = { id: Date.now().toString(), text: newTaskText.trim(), completed: false };
+    const next = [...tasks, item];
+    saveTasks(next);
+    setNewTaskText('');
+  };
+
+  const handleToggleTask = (id: string) => {
+    const next = tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
+    saveTasks(next);
+  };
+
+  const handleDeleteTask = (id: string) => {
+    const next = tasks.filter((t) => t.id !== id);
+    saveTasks(next);
+  };
+
+  const handleClearCompletedTasks = () => {
+    const next = tasks.filter((t) => !t.completed);
+    saveTasks(next);
+  };
+
+  const handleScratchpadChange = (text: string) => {
+    setScratchpadText(text);
+    if (focusProject) {
+      localStorage.setItem(`stitch_scratchpad_${focusProject}`, text);
+    }
+  };
+
+  // Sound Chime helper
+  const playChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch (e) {
+      // Audio play blocked
+    }
+  };
+
+  // Timer Tick Effect
+  useEffect(() => {
+    let interval: any = null;
+    if (isTimerRunning) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setIsTimerRunning(false);
+            playChime();
+            if (timerMode === 'work') {
+              setCompletedSessions((c) => {
+                const next = c + 1;
+                localStorage.setItem('stitch_focus_completed_sessions', next.toString());
+                return next;
+              });
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timerMode]);
+
+  // Mode switch
+  const switchTimerMode = (mode: 'work' | 'shortBreak' | 'longBreak') => {
+    setIsTimerRunning(false);
+    setTimerMode(mode);
+    setTimeLeft(durations[mode] * 60);
+  };
+
+  const toggleTimer = () => setIsTimerRunning(!isTimerRunning);
+
+  const resetTimer = () => {
+    setIsTimerRunning(false);
+    setTimeLeft(durations[timerMode] * 60);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     if (!focusProject) { setData(null); return; }
     setLoading(true);
@@ -115,6 +253,8 @@ export default function FocusWorkspace() {
         const isLocal = data.type === 'local';
         const features = data.issues.filter((i) => i.labels.some((l) => /feature|enhancement/i.test(l.name)));
         const prs = data.prs;
+        const completedTaskCount = tasks.filter((t) => t.completed).length;
+        const taskProgressPct = tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0;
 
         return (
           <div className="focus-grid">
@@ -124,14 +264,79 @@ export default function FocusWorkspace() {
                 <h3><span>💡</span> Features to Work On</h3>
                 <div style={{ marginTop: 10 }}>
                   {features.length > 0 ? features.map((f) => (
-                    <div key={f.number} className="list-item" style={{ marginBottom: 8 }}>
-                      <div className="item-left">
-                        <a href={f.url} target="_blank" rel="noreferrer" className="item-title">#{f.number} {f.title}</a>
-                        <span className="item-subtitle">by @{f.author?.login}</span>
+                    <div key={f.number} className="list-item" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <span className="issue-number-badge">#{f.number}</span>
+                        <a href={f.url} target="_blank" rel="noreferrer" className="item-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.title}</a>
                       </div>
-                      <span className="badge badge-purple">Feature</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        <span className="item-subtitle" style={{ fontSize: '0.78rem', color: '#94a3b8' }}>by @{f.author?.login}</span>
+                        <span className="badge badge-purple">Feature</span>
+                      </div>
                     </div>
                   )) : <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No active feature issues.</div>}
+                </div>
+              </div>
+
+              {/* Sub-Task Checklist */}
+              <div className="focus-card checklist-card">
+                <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>🎯 Focus Sub-Task Checklist ({completedTaskCount}/{tasks.length})</span>
+                  {completedTaskCount > 0 && (
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                      onClick={handleClearCompletedTasks}
+                    >
+                      Clear Done ({completedTaskCount})
+                    </button>
+                  )}
+                </h3>
+
+                <div className="checklist-progress-bar-bg">
+                  <div className="checklist-progress-bar-fill" style={{ width: `${taskProgressPct}%` }} />
+                </div>
+
+                <form onSubmit={handleAddTask} className="checklist-input-group">
+                  <input
+                    type="text"
+                    className="checklist-input"
+                    placeholder="Add a micro-task (e.g., Implement backend endpoint, write test)..."
+                    value={newTaskText}
+                    onChange={(e) => setNewTaskText(e.target.value)}
+                  />
+                  <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.85rem' }}>
+                    + Add
+                  </button>
+                </form>
+
+                <div style={{ display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+                  {tasks.length > 0 ? (
+                    tasks.map((task) => (
+                      <div key={task.id} className={`checklist-item ${task.completed ? 'completed' : ''}`}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input
+                            type="checkbox"
+                            className="checklist-checkbox"
+                            checked={task.completed}
+                            onChange={() => handleToggleTask(task.id)}
+                          />
+                          <span style={{ fontSize: '0.88rem' }}>{task.text}</span>
+                        </div>
+                        <button
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}
+                          onClick={() => handleDeleteTask(task.id)}
+                          title="Delete task"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '8px 0', textAlign: 'center' }}>
+                      No sub-tasks yet. Break down your active work into actionable steps!
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -140,10 +345,13 @@ export default function FocusWorkspace() {
                 <h3><span>👀</span> Pull Request Reviews</h3>
                 <div style={{ marginTop: 10 }}>
                   {prs.length > 0 ? prs.map((pr) => (
-                    <div key={pr.number} className="list-item" style={{ marginBottom: 8 }}>
-                      <div className="item-left">
-                        <a href={pr.url} target="_blank" rel="noreferrer" className="item-title">#{pr.number} {pr.title}</a>
-                        <span className="item-subtitle">by @{pr.author?.login}</span>
+                    <div key={pr.number} className="list-item" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <span className="pr-number-badge">#{pr.number}</span>
+                        <a href={pr.url} target="_blank" rel="noreferrer" className="item-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</a>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        <span className="item-subtitle" style={{ fontSize: '0.78rem', color: '#94a3b8' }}>by @{pr.author?.login}</span>
                       </div>
                     </div>
                   )) : <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No active pull request reviews.</div>}
@@ -165,6 +373,56 @@ export default function FocusWorkspace() {
             </div>
 
             <div className="focus-side">
+              {/* Pomodoro Focus Timer Card */}
+              <div className="focus-card pomodoro-card">
+                <h3><span>⏱️</span> Focus Timer</h3>
+                <div className="pomodoro-modes">
+                  <button className={`pomodoro-mode-btn ${timerMode === 'work' ? 'active' : ''}`} onClick={() => switchTimerMode('work')}>Focus (25m)</button>
+                  <button className={`pomodoro-mode-btn ${timerMode === 'shortBreak' ? 'active' : ''}`} onClick={() => switchTimerMode('shortBreak')}>Short Break (5m)</button>
+                  <button className={`pomodoro-mode-btn ${timerMode === 'longBreak' ? 'active' : ''}`} onClick={() => switchTimerMode('longBreak')}>Long Break (15m)</button>
+                </div>
+                <div className="pomodoro-display">
+                  <div className="pomodoro-time">{formatTime(timeLeft)}</div>
+                </div>
+                <div className="pomodoro-controls">
+                  <button className="pomodoro-btn-main" onClick={toggleTimer}>
+                    {isTimerRunning ? '⏸ Pause' : '▶ Start'}
+                  </button>
+                  <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={resetTimer}>
+                    🔄 Reset
+                  </button>
+                </div>
+                <div className="pomodoro-stats">
+                  <span>Sessions Completed: <strong style={{ color: '#818cf8' }}>{completedSessions}</strong> 🏆</span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{timerMode === 'work' ? 'Stay Focused' : 'Take a Break'}</span>
+                </div>
+              </div>
+
+              {/* Quick Scratchpad Card */}
+              <div className="focus-card scratchpad-card">
+                <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>📝 Focus Scratchpad</span>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                    onClick={() => handleScratchpadChange('')}
+                    title="Clear notes"
+                  >
+                    Clear
+                  </button>
+                </h3>
+                <textarea
+                  className="scratchpad-textarea"
+                  placeholder="Jot down quick thoughts, snippets, or todo items for this workspace..."
+                  value={scratchpadText}
+                  onChange={(e) => handleScratchpadChange(e.target.value)}
+                />
+                <div className="scratchpad-meta">
+                  <span>{scratchpadText.trim() ? scratchpadText.trim().split(/\s+/).length : 0} words • {scratchpadText.length} chars</span>
+                  <span style={{ color: '#818cf8' }}>Auto-saved</span>
+                </div>
+              </div>
+
               {isLocal ? (
                 <>
                   <div className="focus-card">
