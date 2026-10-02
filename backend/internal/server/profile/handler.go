@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 
@@ -181,17 +182,18 @@ func HandlePostProfileGit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// Security: use exec.Command directly with arguments — never interpolate user
+	// input into a shell string, which would allow command injection.
 	if body.Name != "" {
-		res := shell.RunCmd(fmt.Sprintf(`git config --global user.name "%s"`, body.Name), "")
-		if !res.Success {
+		cmd := exec.Command("git", "config", "--global", "user.name", body.Name)
+		if err := cmd.Run(); err != nil {
 			helpers.WriteJSONError(w, "Failed to set global Git user.name.", http.StatusInternalServerError)
 			return
 		}
 	}
 	if body.Email != "" {
-		res := shell.RunCmd(fmt.Sprintf(`git config --global user.email "%s"`, body.Email), "")
-		if !res.Success {
+		cmd := exec.Command("git", "config", "--global", "user.email", body.Email)
+		if err := cmd.Run(); err != nil {
 			helpers.WriteJSONError(w, "Failed to set global Git user.email.", http.StatusInternalServerError)
 			return
 		}

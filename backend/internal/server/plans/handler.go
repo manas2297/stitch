@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os/exec"
 	"strings"
 
 	"stitch/internal/config"
 	internalPlans "stitch/internal/plans"
 	"stitch/internal/server/helpers"
-	"stitch/internal/shell"
 )
 
 func HandleGetPlans(w http.ResponseWriter, r *http.Request) {
@@ -119,18 +119,23 @@ func HandlePromotePlan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cmdStr := fmt.Sprintf(`gh issue create -t "%s" -b "%s"`, strings.ReplaceAll(target.Title, `"`, `\"`), strings.ReplaceAll(target.Description, `"`, `\"`))
+	// Security: use exec.Command with explicit args — never interpolate plan title/description
+	// into a shell string, which allows command injection via backticks or $() in the text.
+	args := []string{"issue", "create", "-t", target.Title, "-b", target.Description}
 	if repoPath == "" && ownerName != "" {
-		cmdStr += fmt.Sprintf(` -R "%s"`, ownerName)
+		args = append(args, "-R", ownerName)
 	}
-
-	res := shell.RunCmd(cmdStr, repoPath)
-	if !res.Success {
-		helpers.WriteJSONError(w, fmt.Sprintf("GitHub CLI failed: %s", res.Stderr), http.StatusInternalServerError)
+	cmd := exec.Command("gh", args...)
+	if repoPath != "" {
+		cmd.Dir = repoPath
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		helpers.WriteJSONError(w, fmt.Sprintf("GitHub CLI failed: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	issueURL := strings.TrimSpace(res.Stdout)
+	issueURL := strings.TrimSpace(string(out))
 	if issueURL == "" {
 		helpers.WriteJSONError(w, "GitHub CLI created the issue but did not return a URL.", http.StatusInternalServerError)
 		return

@@ -10,11 +10,24 @@ import (
 	"stitch/internal/server/helpers"
 )
 
+// allowedProviders is the strict allowlist of AI tool provider names accepted by the monitor endpoints.
+var allowedProviders = map[string]bool{
+	"gemini":    true,
+	"claude":    true,
+	"openai":    true,
+	"anthropic": true,
+	"cursor":    true,
+}
+
 // HandleGetProviderDisk scans ~/.<provider> directory and returns disk usage breakdown.
 func HandleGetProviderDisk(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
 	if provider == "" {
 		helpers.WriteJSONError(w, "Provider is required", http.StatusBadRequest)
+		return
+	}
+	if !allowedProviders[provider] {
+		helpers.WriteJSONError(w, "Unknown provider", http.StatusBadRequest)
 		return
 	}
 	homedir, err := os.UserHomeDir()
@@ -135,6 +148,10 @@ func HandleDeleteProviderMedia(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
 	if provider == "" {
 		helpers.WriteJSONError(w, "Provider is required", http.StatusBadRequest)
+		return
+	}
+	if !allowedProviders[provider] {
+		helpers.WriteJSONError(w, "Unknown provider", http.StatusBadRequest)
 		return
 	}
 	homedir, err := os.UserHomeDir()
