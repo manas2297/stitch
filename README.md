@@ -3,13 +3,54 @@
 [![Hacktoberfest](https://img.shields.io/badge/Hacktoberfest-2026-blueviolet?logo=github)](../../issues?q=is%3Aopen+label%3Ahacktoberfest)
 [![good first issue](https://img.shields.io/github/issues/manas2297/stitch/good%20first%20issue?label=good%20first%20issues&color=green)](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22)
 
-Stitch is a productivity-first developer dashboard that groups and manages your GitHub repositories (both local clones and web-only remotes) by your active energy levels (Low, Medium, High).
+Stitch is a productivity-first developer dashboard that groups and manages your GitHub repositories (both local clones and web-only remotes) by your active energy level (Low, Medium, High).
 
-It aggregates issues, PR reviews, tag releases, and build states into a single workspace, utilizing the official GitHub CLI (`gh`) under the hood to ensure credentials are kept secure and local.
+It aggregates issues, PR reviews, tag releases, and build states into a single workspace, using the official GitHub CLI (`gh`) under the hood so credentials stay secure and local.
+
+> 🎃 **Hacktoberfest**: Stitch is open for contributions! Check the [`good first issue`](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) label to get started. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ---
 
-> 🎃 **Hacktoberfest**: Stitch is open for contributions! Check out the [`good first issue`](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) label to get started. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+## Features
+
+### 🏠 Home Overview
+Aggregates all tracked repos into a single dashboard — total repo count, open PRs, open issues, day streak, local vs. web breakdown, and a live GitHub contribution graph.
+
+### 📁 Repositories Workspace
+Add local repo directories or web-only GitHub remotes. Toggle focus tags, star primary projects, and manage your tracked repo list.
+
+### ⚡ Energy-Guided Navigation
+A floating panel lets you switch between three energy modes that filter which tabs are visible:
+
+| Mode | Tabs shown |
+|------|-----------|
+| **Low** | PR Reviews · Issues |
+| **Medium** | Releases · Major Projects |
+| **High** | Focus Workspace · Builds |
+
+### 🎯 Focus Workspace
+Deep-work mode for your currently focused repo. Includes:
+- **File explorer** — browse local or remote repo contents and view file contents inline.
+- **Architecture Diagram** — interactive node-edge canvas (powered by React Flow) to sketch and persist your repo's architecture.
+- **Focus Checklist** — per-project task list persisted to `localStorage`.
+- **Focus Scratchpad** — freeform markdown notes scoped to the active project.
+- **Pomodoro Timer** — 25/5/15 work-break cycles with chime, session counter, and `localStorage` persistence.
+- **Build Runner** — stream live build/lint output from the repo's configured scripts via SSE.
+
+### ⭐ Major Projects Deep-Dive
+Clicking a starred project opens a detail workspace partitioning features, bugs, reviews, issues, and a remote-synced roadmap. Includes an **Ideas Editor** — a markdown file manager that reads and writes `.md` files directly from the repo via the GitHub API.
+
+### 🗺️ Remote Roadmap Sync
+Roadmap items are saved to and read from a GitHub issue tagged with the label `roadmap`. The label and issue are automatically created on the remote if they don't exist.
+
+### 📦 Releases
+View tag releases across all tracked repos. Cut a new release (tag + notes) directly from the UI.
+
+### 🤖 AI Provider Monitor
+Inspect and clean up disk usage from local AI tool caches (Gemini, Claude, OpenAI, Anthropic, Cursor) — screenshots, recordings, and media stored under `~/.<provider>`.
+
+### 👤 Developer Profile
+Configure global Git properties (`user.name`, `user.email`) and run environment runtime checks (Go, Node, Python, Postgres, Redis) and macOS diagnostics from one screen.
 
 ---
 
@@ -17,98 +58,164 @@ It aggregates issues, PR reviews, tag releases, and build states into a single w
 
 ```
 stitch/
-  backend/                  ← Go backend module (REST API + Wails desktop GUI)
-    main.go                 ← Entrypoint routing server/desktop targets
+  backend/                   ← Go backend (REST API + Wails desktop)
+    main.go                  ← Entrypoint: parses --server / --desktop flags
     internal/
-      desktop/              ← Wails app setup & browser runtime bindings
-      server/               ← REST API server endpoints & Git logic
-  config.json               ← Local database of tracked repos (gitignored)
-  client/                   ← Vite + React + TypeScript frontend app
+      config/                ← config.json read/write
+      models/                ← Shared struct types (Repo, Config)
+      shell/                 ← exec.Command wrapper + Git/gh CLI helpers
+      server/                ← REST API
+        router.go            ← Route registration
+        repos/               ← CRUD + toggle-major + set-focus + tab-energies
+        contributions/       ← PRs, issues, GitHub contribution graph
+        focus/               ← Focus repo info + file contents
+        ideas/               ← Markdown ideas file CRUD
+        plans/               ← Plans CRUD + promote
+        releases/            ← Tag listing + release creation
+        roadmap/             ← Remote roadmap issue sync
+        build/               ← SSE build/lint runner
+        monitor/             ← AI provider disk usage + cleanup
+        profile/             ← Git config read/write
+      desktop/               ← Wails app bootstrap + JS bindings (app.go)
+  client/                    ← Vite + React 19 + TypeScript frontend
     src/
-      store/useAppStore.ts  ← Zustand global state + apiFetch routing wrapper
-      components/           ← Tab panels & UI elements (Overview, Repositories, Profile...)
+      store/useAppStore.ts   ← Zustand global state + apiFetch routing wrapper
+      components/            ← Tab panels & UI elements
+        focus/               ← PomodoroTimer, FocusChecklist, FocusScratchpad,
+                                ArchitectureDiagram (React Flow)
+        ui/                  ← AlertDialog
+  config.json                ← Local repo database (gitignored)
 ```
 
-## Features
+### How the layers connect
 
-- **🏠 Home Overview**: Aggregates all repos, showing total counts, active PRs, issues, and local vs web breakdown.
-- **📁 Repositories Workspace**: Dedicated workspace manager to add local repo directories, toggle focus tags, star primary major projects, and manage cloned files.
-- **👤 Developer Profile**: Form interfaces for global Git configure properties, environment runtime checks (Go, Node, Python, Postgres, Redis), and macOS diagnostics.
-- **⚡ Energy-Guided Navigation**:
-  - **Low Energy**: PR Reviews & Issues (low overhead tasks).
-  - **Medium Energy**: Cut Release (tag status & commit details) & Major Projects.
-  - **High Energy**: Focus Workspace (files/Git status) & Fix Builds (running builds/lint tasks).
-- **⭐ Major Projects Deep-Dive**: Clicking on starred projects displays a detail workspace partitioning features, bugs, reviews, issues, and a remote-synced roadmap.
-- **🗺️ Remote Roadmap Sync**: Roadmap items are saved to, and read from, a GitHub issue tagged with the label `roadmap`. The label and issue are automatically set up on the remote.
+```mermaid
+flowchart LR
+  subgraph frontend [Frontend - React]
+    UI[components/]
+    Store[useAppStore.ts]
+    UI --> Store
+  end
+
+  subgraph backend [Backend - Go]
+    Router[server/router.go]
+    Handlers[server/*/*/handler.go]
+    Config[config.json]
+    Router --> Handlers
+    Handlers --> Config
+    Handlers --> Shell[shell/shell.go]
+    Shell --> GH[gh CLI / git]
+  end
+
+  subgraph desktop [Desktop only]
+    Wails[desktop/app.go]
+    Wails --> Router
+  end
+
+  Store -->|apiFetch /api/*| Router
+  UI -->|window.go.desktop.App| Wails
+```
+
+Stitch runs in three modes:
+
+| Mode | How to start | What runs |
+|------|-------------|-----------|
+| **Web dev** | `npm run dev` | Air hot-reloads Go on `:4000`; Vite serves React on `:5173` with `/api` proxied |
+| **Web production** | `npm run build && npm start` | Single Go binary serves REST API + static files |
+| **Desktop (Wails)** | `wails dev` / `wails build` | Native window + embedded assets; Go API still on `:4000` |
 
 ---
 
 ## Setup & Running
 
-### 1. Prerequisites
-Ensure you have the GitHub CLI (`gh`) installed and authenticated:
-```bash
-# Verify installation
-gh --version
+### Prerequisites
 
-# Authenticate with your GitHub account
+- **Go 1.24+**
+- **Node.js 18+**
+- **GitHub CLI** installed and authenticated:
+
+```bash
+gh --version
 gh auth login
 ```
 
-### 2. Install Dependencies
-```bash
-# Install Node packages
-npm install
+### 1. Clone & Install
 
-# Download Go library dependencies
-go mod tidy
+```bash
+git clone https://github.com/manas2297/stitch.git
+cd stitch
+npm install
+go mod tidy   # from the backend/ directory
 ```
 
-### 3. Initialize Configuration
-Copy the template configuration file:
+### 2. Configure
+
 ```bash
 cp config.example.json config.json
 ```
 
-### 4. Running Development Servers (Hot Reload)
+### 3. Run in Dev Mode (hot reload)
 
-To start the Go backend server (managed by `air` for hot reloading) and the React frontend developer client:
 ```bash
 npm run dev
 ```
-Open `http://localhost:5173` to access the application.
+
+- Backend (Go + Air): `http://localhost:4000`
+- Frontend (Vite): `http://localhost:5173` ← open this in your browser
 
 ---
 
-## Desktop App Packaging (Wails)
+## Desktop App (Wails)
 
-Stitch can be bundled as a standalone desktop GUI application (`.app` for macOS) using **Wails**.
+Stitch can be packaged as a standalone `.app` (macOS) using Wails.
 
-### 1. Install Wails CLI
+### Install Wails
+
 ```bash
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```
 
-### 2. Wails Development Mode (Live-Reload GUI)
-This boots the desktop app window directly with hot-reload enabled for both Go changes and React/CSS updates.
+### Dev mode (live-reload GUI window)
 
-**Note**: Before running `wails dev` on a fresh clone, make sure you have run `npm install` from the repo root (no global Vite install required) and have copied `config.example.json` to `config.json`.
+Before first run, ensure you've run `npm install` from the repo root and copied `config.example.json` to `config.json`.
 
 ```bash
-# Navigate to the backend directory
 cd backend
-
-# Start Wails dev mode
 ~/go/bin/wails dev
 ```
 
-### 3. Packaging standalone Stitch.app
-To build the final production-ready application bundle:
+### Build production `.app`
+
 ```bash
-# 1. Compile frontend client assets (from project root)
+# 1. Compile frontend assets
 npm run build:client
 
 # 2. Package the app bundle
 cd backend && ~/go/bin/wails build -s
 ```
-Your compiled native bundle is created under: **`build/bin/Stitch.app`**.
+
+Output: **`build/bin/Stitch.app`**
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, TypeScript, Vite, Zustand |
+| Diagrams | [@xyflow/react](https://reactflow.dev/) (React Flow) |
+| Backend | Go 1.24+ |
+| Desktop | [Wails v2](https://wails.io/) |
+| Dev hot-reload | [Air](https://github.com/air-verse/air) (Go), Vite HMR (React) |
+| Auth / GitHub API | [GitHub CLI (`gh`)](https://cli.github.com/) |
+| Local Git | `git` CLI |
+
+---
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
+
+- Browse open [`good first issue`](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) tasks.
+- Use the issue templates when reporting bugs or proposing features.
+- All PRs must be linked to an open issue.
