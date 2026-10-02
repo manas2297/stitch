@@ -105,6 +105,13 @@ func HandleFocusContents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Security: only proxy contents for repos that are tracked in the workspace.
+	cfg := config.Read()
+	if helpers.FindRepoByOwnerName(&cfg, owner, name) == nil {
+		helpers.WriteJSONError(w, "Repository not found in workspace.", http.StatusForbidden)
+		return
+	}
+
 	cmd := fmt.Sprintf(`gh api repos/%s/%s/contents/%s`, owner, name, helpers.UrlPathEncode(filePath))
 	result := shell.RunCmd(cmd, "")
 

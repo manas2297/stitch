@@ -82,7 +82,18 @@ func Routes() http.Handler {
 
 	// Global CORS and OPTIONS handler middleware
 	globalCORS := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		// Allow only loopback origins (dev Vite client and desktop WebView)
+		allowedOrigins := map[string]bool{
+			"http://localhost:5173":   true,
+			"http://127.0.0.1:5173":  true,
+			"http://localhost:4000":   true,
+			"http://127.0.0.1:4000":  true,
+		}
+		if allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS, PUT")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 		

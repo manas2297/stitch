@@ -53,7 +53,7 @@ func Write(cfg models.Config) bool {
 		return false
 	}
 
-	if err := os.WriteFile(file, data, 0644); err != nil {
+	if err := os.WriteFile(file, data, 0600); err != nil {
 		fmt.Printf("Error writing config: %v\n", err)
 		return false
 	}

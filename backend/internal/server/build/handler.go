@@ -7,6 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"stitch/internal/config"
+	"stitch/internal/server/helpers"
 )
 
 func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
@@ -21,6 +24,32 @@ func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		http.Error(w, `{"error":"Repository path does not exist."}`, http.StatusNotFound)
 		return
+	}
+
+	// Security: only allow running builds inside tracked repos.
+	cfg := config.Read()
+	allowed := false
+	for _, repo := range cfg.Repos {
+		if repo.Path == "" {
+			continue
+		}
+		if rAbs, _ := filepath.Abs(repo.Path); rAbs == absPath {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		helpers.WriteJSONError(w, "Path is not a tracked repository in your workspace.", http.StatusForbidden)
+		return
+	}
+
+	// Security: restrict script name to word characters only (no shell metacharacters).
+	for _, ch := range script {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == ':') {
+			helpers.WriteJSONError(w, "Invalid script name.", http.StatusBadRequest)
+			return
+		}
 	}
 
 	command := "npm run build"

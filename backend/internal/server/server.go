@@ -14,11 +14,11 @@ func Run() {
 	}
 
 	srv := &http.Server{
-		Addr:    ":" + port,
+		Addr:    "127.0.0.1:" + port,
 		Handler: Routes(),
 	}
 
-	fmt.Printf("Stitch GitHub Manager Server running in Go on http://localhost:%s\n", port)
+	fmt.Printf("Stitch GitHub Manager Server running in Go on http://127.0.0.1:%s\n", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Printf("Server failed: %v\n", err)
 	}
