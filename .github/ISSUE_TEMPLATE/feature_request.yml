@@ -1,0 +1,59 @@
+name: ✨ Feature Request
+description: Propose a new feature or improvement for Stitch
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Fill out the form below to help us understand your idea.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain point or gap this feature would address.
+      placeholder: "I find it frustrating when I have to... / There's no way to currently..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you'd like to see added and how it would work.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area of Stitch
+      description: Which part of the app does this relate to?
+      multiple: true
+      options:
+        - Home Overview
+        - Repositories Workspace
+        - Developer Profile
+        - Energy-Guided Navigation (Low / Medium / High)
+        - Major Projects Deep-Dive
+        - Remote Roadmap Sync
+        - Backend / API
+        - Desktop (Wails)
+        - Other / Cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any other approaches? Why is your proposed solution better?
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I am willing to submit a pull request to implement this feature.

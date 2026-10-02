@@ -1,0 +1,42 @@
+name: 🌱 Good First Issue
+description: A well-scoped task for first-time contributors (maintainers only)
+labels: ["good first issue", "hacktoberfest"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Note**: This template is intended for maintainers to create beginner-friendly tasks.
+        > If you're a contributor looking for tasks, check the [issues list](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) for open ones!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task description
+      description: Clear explanation of what needs to be done.
+    validations:
+      required: true
+
+  - type: textarea
+    id: relevant_files
+    attributes:
+      label: Relevant files
+      description: Files or directories a contributor should look at first.
+      placeholder: |
+        - `client/src/components/Overview.jsx`
+        - `backend/internal/server/handlers.go`
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What does "done" look like? How will the PR be reviewed/accepted?
+    validations:
+      required: true
+
+  - type: textarea
+    id: hints
+    attributes:
+      label: Hints / pointers
+      description: Optional tips to guide a first-time contributor in the right direction.
