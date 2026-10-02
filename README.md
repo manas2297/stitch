@@ -1,8 +1,15 @@
 # Stitch 🧵
 
-Stitch is a productivity-first developer dashboard that groups and manages your GitHub repositories (both local clones and web-only remotes) by your active energy levels (Low, Medium, High). 
+[![Hacktoberfest](https://img.shields.io/badge/Hacktoberfest-2026-blueviolet?logo=github)](../../issues?q=is%3Aopen+label%3Ahacktoberfest)
+[![good first issue](https://img.shields.io/github/issues/manas2297/stitch/good%20first%20issue?label=good%20first%20issues&color=green)](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+
+Stitch is a productivity-first developer dashboard that groups and manages your GitHub repositories (both local clones and web-only remotes) by your active energy levels (Low, Medium, High).
 
 It aggregates issues, PR reviews, tag releases, and build states into a single workspace, utilizing the official GitHub CLI (`gh`) under the hood to ensure credentials are kept secure and local.
+
+---
+
+> 🎃 **Hacktoberfest**: Stitch is open for contributions! Check out the [`good first issue`](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) label to get started. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ---
 
