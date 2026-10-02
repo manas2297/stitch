@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import useAppStore from '../store/useAppStore';
 import { useToast } from './Toast';
-import { confirmDialog } from '../helper/confirm';
+import { ConfirmAlertDialog } from './ui/AlertDialog';
+import { Trash2, Star, Crosshair, FolderGit2, Globe } from 'lucide-react';
 
 export default function Repositories() {
   const toast = useToast();
   const repos = useAppStore((s) => s.repos);
   const currentUser = useAppStore((s) => s.currentUser);
+  const [repoToDelete, setRepoToDelete] = useState<any | null>(null);
 
   // Group by owner matches the logged in user
   const myRepos = repos.filter(
@@ -76,8 +78,9 @@ export default function Repositories() {
             <div key={i} className="overview-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 160 }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.98rem', display: 'flex', alignItems: 'center', gap: 6, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '75%' }}>
-                    <span>{isLocal ? '💻' : '🌐'}</span> {repo.name}
+                  <div style={{ fontWeight: 700, fontSize: '0.98rem', display: 'flex', alignItems: 'center', gap: 7, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '75%' }}>
+                    {isLocal ? <FolderGit2 size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} /> : <Globe size={16} style={{ color: '#38bdf8', flexShrink: 0 }} />}
+                    <span>{repo.name}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <span className={`badge ${isForkOrCloned ? 'badge-orange' : 'badge-purple'}`} style={{ fontSize: '0.65rem', textTransform: 'none' }}>
@@ -103,7 +106,7 @@ export default function Repositories() {
               <div style={{ display: 'flex', justifyItems: 'space-between', borderTop: '1px solid var(--border-color)', marginTop: 12, paddingTop: 12, gap: 8 }}>
                 <button
                   className="btn btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '0.72rem', flex: 1 }}
+                  style={{ padding: '6px 10px', fontSize: '0.72rem', flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
                   onClick={() => {
                     const value = repo.path || `${repo.owner}/${repo.name}`;
                     useAppStore.getState().setFocusProject(value);
@@ -111,14 +114,15 @@ export default function Repositories() {
                     toast(`Focused workspace set to ${repo.name}`, 'info');
                   }}
                 >
-                  🎯 Focus
+                  <Crosshair size={12} /> Focus
                 </button>
 
                 <button
                   className="btn btn-secondary"
                   style={{
                     padding: '6px 10px', fontSize: '0.72rem',
-                    color: repo.isMajorProject ? 'var(--energy-medium)' : 'var(--text-muted)'
+                    color: repo.isMajorProject ? 'var(--energy-medium)' : 'var(--text-muted)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
                   }}
                   onClick={() => {
                     useAppStore.getState().toggleMajor({ path: repo.path || '', owner: repo.owner || '', name: repo.name || '' });
@@ -128,35 +132,51 @@ export default function Repositories() {
                     );
                   }}
                 >
-                  {repo.isMajorProject ? '★ Starred' : '☆ Star'}
+                  <Star size={12} fill={repo.isMajorProject ? 'currentColor' : 'none'} />
+                  {repo.isMajorProject ? 'Starred' : 'Star'}
                 </button>
 
                 <button
                   className="delete-btn"
-                  onClick={async () => {
-                    console.log("delete is clicked")
-                    const confirmed = await confirmDialog('Remove Repository', `Remove repository: ${repo.name}?`);
-                    if (confirmed) {
-                      try {
-                        await useAppStore.getState().deleteRepo({
-                          path: repo.path || '',
-                          owner: repo.owner || '',
-                          name: repo.name || '',
-                        });
-                        toast(`Removed ${repo.name}`, 'info');
-                      } catch (err) {
-                        toast(err.message, 'error');
-                      }
-                    }
+                  title="Remove repository"
+                  aria-label="Remove repository"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRepoToDelete(repo);
                   }}
                 >
-                  ×
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      <ConfirmAlertDialog
+        open={Boolean(repoToDelete)}
+        title="Remove Repository"
+        description={repoToDelete ? `Are you sure you want to remove "${repoToDelete.name}" from your workspace?` : ''}
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!repoToDelete) return;
+          const target = repoToDelete;
+          setRepoToDelete(null);
+          try {
+            await useAppStore.getState().deleteRepo({
+              path: target.path || '',
+              owner: target.owner || '',
+              name: target.name || '',
+            });
+            toast(`Removed ${target.name}`, 'info');
+          } catch (err: any) {
+            toast(err.message || 'Failed to remove repository', 'error');
+          }
+        }}
+        onCancel={() => setRepoToDelete(null)}
+      />
     </div>
   );
 }
