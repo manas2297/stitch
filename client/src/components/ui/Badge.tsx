@@ -2,7 +2,7 @@ import React from 'react';
 
 export interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'default' | 'green' | 'orange' | 'red' | 'blue' | 'purple' | 'muted';
+  variant?: 'default' | 'green' | 'orange' | 'red' | 'blue' | 'purple';
   className?: string;
   style?: React.CSSProperties;
 }

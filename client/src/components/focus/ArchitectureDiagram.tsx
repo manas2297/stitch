@@ -316,13 +316,13 @@ const nodeTypes = {
   capsule: CapsuleNode,
 };
 
-const initialNodes: Node[] = [
+const getInitialNodes = (): Node[] => [
   { id: '1', type: 'square', position: { x: 50, y: 80 }, data: { label: 'Client Frontend' } },
   { id: '2', type: 'rhombus', position: { x: 280, y: 80 }, data: { label: 'Backend Router' } },
   { id: '3', type: 'database', position: { x: 520, y: 80 }, data: { label: 'Database / Store' } },
 ];
 
-const initialEdges: Edge[] = [
+const getInitialEdges = (): Edge[] => [
   {
     id: 'e1-2',
     source: '1',
@@ -343,8 +343,8 @@ const initialEdges: Edge[] = [
 ];
 
 export default function ArchitectureDiagram({ focusProject }: ArchitectureDiagramProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(getInitialNodes());
+  const [edges, setEdges, onEdgesChange] = useEdgesState(getInitialEdges());
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedElements, setSelectedElements] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   const isLoaded = useRef(false);
@@ -362,16 +362,17 @@ export default function ArchitectureDiagram({ focusProject }: ArchitectureDiagra
           setEdges(parsed.edges);
         }
       } catch (e) {
-        setNodes(initialNodes);
-        setEdges(initialEdges);
+        setNodes(getInitialNodes());
+        setEdges(getInitialEdges());
       }
     } else {
-      setNodes(initialNodes);
-      setEdges(initialEdges);
+      setNodes(getInitialNodes());
+      setEdges(getInitialEdges());
     }
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       isLoaded.current = true;
     }, 100);
+    return () => clearTimeout(timer);
   }, [focusProject, setNodes, setEdges]);
 
   // Save changes automatically on node/edge updates
@@ -455,8 +456,8 @@ export default function ArchitectureDiagram({ focusProject }: ArchitectureDiagra
   }, [selectedElements, setNodes, setEdges]);
 
   const handleResetDiagram = () => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
+    setNodes(getInitialNodes());
+    setEdges(getInitialEdges());
   };
 
   const onSelectionChange = useCallback(({ nodes: selNodes, edges: selEdges }: { nodes: Node[]; edges: Edge[] }) => {

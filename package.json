@@ -13,16 +13,12 @@
     "start": "./stitch-backend"
   },
   "dependencies": {
-    "@radix-ui/react-alert-dialog": "^1.1.23",
-    "@radix-ui/react-dialog": "^1.1.23",
     "@xyflow/react": "^12.11.2",
-    "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "lucide-react": "^1.49.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tailwind-merge": "^3.7.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

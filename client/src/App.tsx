@@ -111,71 +111,69 @@ function EnergyPanel({ activeEnergy, setActiveEnergy }) {
   return (
     <div className="energy-float-root" ref={panelRef}>
       {/* ── Panel ─────────────────────────────────────── */}
-      {open && (
-        <div className="energy-float-panel open">
-          {/* Panel header */}
-          <div className="efp-header">
-            <div className="efp-header-left">
-              <div className="efp-header-dot" style={{ background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }} />
-              <span className="efp-header-title">Energy Mode</span>
-            </div>
-            <button className="efp-close" onClick={() => setOpen(false)} aria-label="Close">✕</button>
+      <div className={`energy-float-panel ${open ? 'open' : ''}`}>
+        {/* Panel header */}
+        <div className="efp-header">
+          <div className="efp-header-left">
+            <div className="efp-header-dot" style={{ background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }} />
+            <span className="efp-header-title">Energy Mode</span>
           </div>
-
-          {/* Active mode hero */}
-          <div className="efp-active-hero" style={{ background: cfg.bg, borderColor: cfg.border }}>
-            <div className="efp-active-left">
-              <span className="efp-active-emoji">{cfg.emoji}</span>
-              <div>
-                <div className="efp-active-label" style={{ color: cfg.color }}>{cfg.label}</div>
-                <div className="efp-active-desc">{cfg.desc}</div>
-              </div>
-            </div>
-            <svg className="efp-active-check" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke={cfg.color} strokeWidth="1.5" opacity="0.4" />
-              <path d="M5 8l2 2 4-4" stroke={cfg.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-
-          {/* Divider */}
-          <div className="efp-divider">
-            <span>Switch Mode</span>
-          </div>
-
-          {/* Mode options */}
-          <div className="efp-options">
-            {Object.entries(ENERGY_CONFIG).map(([key, conf]) => {
-              const isActive = key === activeEnergy;
-              return (
-                <button
-                  key={key}
-                  className={`efp-option ${isActive ? 'active' : ''}`}
-                  style={isActive ? { background: conf.bg, borderColor: conf.border } : {}}
-                  onClick={() => { setActiveEnergy(key); setOpen(false); }}
-                >
-                  <span className="efp-option-icon" style={{ color: conf.color, stroke: conf.color }}>
-                    {conf.icon}
-                  </span>
-                  <div className="efp-option-text">
-                    <span className="efp-option-label" style={isActive ? { color: conf.color } : {}}>{conf.label}</span>
-                    <span className="efp-option-desc">{conf.desc}</span>
-                  </div>
-                  {isActive && (
-                    <svg className="efp-option-check" viewBox="0 0 16 16" fill="none">
-                      <path d="M4 8l3 3 5-5" stroke={conf.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Footer hint */}
-          <div className="efp-footer">
-            Press <kbd>Esc</kbd> to close · Tab visibility updates instantly
-          </div>
+          <button className="efp-close" onClick={() => setOpen(false)} aria-label="Close">✕</button>
         </div>
-      )}
+
+        {/* Active mode hero */}
+        <div className="efp-active-hero" style={{ background: cfg.bg, borderColor: cfg.border }}>
+          <div className="efp-active-left">
+            <span className="efp-active-emoji">{cfg.emoji}</span>
+            <div>
+              <div className="efp-active-label" style={{ color: cfg.color }}>{cfg.label}</div>
+              <div className="efp-active-desc">{cfg.desc}</div>
+            </div>
+          </div>
+          <svg className="efp-active-check" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke={cfg.color} strokeWidth="1.5" opacity="0.4" />
+            <path d="M5 8l2 2 4-4" stroke={cfg.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+
+        {/* Divider */}
+        <div className="efp-divider">
+          <span>Switch Mode</span>
+        </div>
+
+        {/* Mode options */}
+        <div className="efp-options">
+          {Object.entries(ENERGY_CONFIG).map(([key, conf]) => {
+            const isActive = key === activeEnergy;
+            return (
+              <button
+                key={key}
+                className={`efp-option ${isActive ? 'active' : ''}`}
+                style={isActive ? { background: conf.bg, borderColor: conf.border } : {}}
+                onClick={() => { setActiveEnergy(key); setOpen(false); }}
+              >
+                <span className="efp-option-icon" style={{ color: conf.color, stroke: conf.color }}>
+                  {conf.icon}
+                </span>
+                <div className="efp-option-text">
+                  <span className="efp-option-label" style={isActive ? { color: conf.color } : {}}>{conf.label}</span>
+                  <span className="efp-option-desc">{conf.desc}</span>
+                </div>
+                {isActive && (
+                  <svg className="efp-option-check" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 8l3 3 5-5" stroke={conf.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer hint */}
+        <div className="efp-footer">
+          Press <kbd>Esc</kbd> to close · Tab visibility updates instantly
+        </div>
+      </div>
 
       {/* ── Trigger FAB ───────────────────────────────── */}
       <button

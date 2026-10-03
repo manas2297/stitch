@@ -197,12 +197,7 @@ header {
   transform-origin: bottom right;
 }
 
-.energy-float-panel:not(.open) {
-  display: none !important;
-}
-
 .energy-float-panel.open {
-  display: flex !important;
   opacity: 1;
   transform: translateY(0) scale(1);
   pointer-events: auto;
@@ -3061,7 +3056,7 @@ main.sidebar-collapsed {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Focus Workspace — Styled with Color Hunt Retro Sea Palette */
+/* Focus Workspace */
 .focus-grid {
   display: grid;
   grid-template-columns: 1fr 340px;
