@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Laptop,
   Globe,
+  Filter,
+  ExternalLink,
 } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 import { useToast } from './Toast';
@@ -27,7 +29,31 @@ import { StatCard } from './ui/StatCard';
 import { Badge } from './ui/Badge';
 import { EmptyState } from './ui/EmptyState';
 
-const ITEMS_PER_PAGE = 4;
+const ROWS_PER_PAGE = 8;
+
+function TableSkeletonRows({ cols = 5, rows = 5 }: { cols?: number; rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, r) => (
+        <tr key={r}>
+          {Array.from({ length: cols }).map((_, c) => (
+            <td key={c}>
+              <div
+                className="skeleton skeleton-line"
+                style={{
+                  height: 12,
+                  width: c === 0 ? '75%' : '50%',
+                  borderRadius: 4,
+                  margin: 0,
+                }}
+              />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -91,14 +117,7 @@ function computeMonthLabels(weeks?: ContributionWeek[]) {
   return labels;
 }
 
-function prAccentColor(decision?: string) {
-  if (!decision) return 'rgba(139,155,180,0.2)';
-  return {
-    APPROVED:          '#34d399',
-    CHANGES_REQUESTED: '#fbbf24',
-    REVIEW_REQUIRED:   'rgba(139,155,180,0.35)',
-  }[decision] ?? 'rgba(139,155,180,0.2)';
-}
+
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -128,95 +147,6 @@ function ReviewBadge({ decision }: { decision?: string }) {
       {b.icon}
       {b.label}
     </span>
-  );
-}
-
-interface PrItem {
-  url: string;
-  number: number;
-  title: string;
-  createdAt: string;
-  reviewDecision?: string;
-  repository?: { name: string };
-  author?: { login: string };
-  labels?: Array<{ name: string }>;
-}
-
-function PrCard({ pr }: { pr: PrItem }) {
-  const age = ageBadge(pr.createdAt);
-  const accent = prAccentColor(pr.reviewDecision);
-  return (
-    <a href={pr.url} target="_blank" rel="noreferrer" className="activity-card pr-card">
-      {/* Top row: repo chip + number */}
-      <div className="activity-card-top">
-        {pr.repository?.name
-          ? <span className="activity-repo-chip">{pr.repository.name}</span>
-          : <span />
-        }
-        <span className="activity-card-num">#{pr.number}</span>
-      </div>
-
-      {/* Title with left accent bar */}
-      <div className="activity-card-title" style={{ borderLeftColor: accent }}>
-        {pr.title}
-      </div>
-
-      {/* Meta row */}
-      <div className="activity-card-meta">
-        {pr.author?.login && (
-          <span className="activity-author">@{pr.author.login}</span>
-        )}
-        <span className="activity-meta-sep">·</span>
-        <span className={`age-badge ${age.cls}`}>{age.label}</span>
-        {pr.reviewDecision && (
-          <>
-            <span className="activity-meta-sep">·</span>
-            <ReviewBadge decision={pr.reviewDecision} />
-          </>
-        )}
-        {pr.labels?.slice(0, 2).map((l, j) => (
-          <span key={j} className="activity-label">{l.name}</span>
-        ))}
-      </div>
-    </a>
-  );
-}
-
-interface IssueItem {
-  url: string;
-  number: number;
-  title: string;
-  createdAt: string;
-  repository?: { name: string };
-  labels?: Array<{ name: string }>;
-}
-
-function IssueCard({ issue }: { issue: IssueItem }) {
-  const age = ageBadge(issue.createdAt);
-  return (
-    <a href={issue.url} target="_blank" rel="noreferrer" className="activity-card issue-card">
-      {/* Top row: repo chip + number */}
-      <div className="activity-card-top">
-        {issue.repository?.name
-          ? <span className="activity-repo-chip">{issue.repository.name}</span>
-          : <span />
-        }
-        <span className="activity-card-num">#{issue.number}</span>
-      </div>
-
-      {/* Title */}
-      <div className="activity-card-title issue-title">
-        {issue.title}
-      </div>
-
-      {/* Meta row */}
-      <div className="activity-card-meta">
-        <span className={`age-badge ${age.cls}`}>{age.label}</span>
-        {issue.labels?.slice(0, 3).map((l, j) => (
-          <span key={j} className="activity-label">{l.name}</span>
-        ))}
-      </div>
-    </a>
   );
 }
 
@@ -264,20 +194,6 @@ function Pagination({
   );
 }
 
-function SkeletonCards({ rows = 3 }: { rows?: number }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="activity-card-skeleton">
-          <div className="skeleton skeleton-line" style={{ height: 10, width: '35%', marginBottom: 8 }} />
-          <div className="skeleton skeleton-line full" style={{ height: 14, marginBottom: 6 }} />
-          <div className="skeleton skeleton-line" style={{ height: 10, width: '55%' }} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export default function Overview() {
@@ -295,9 +211,10 @@ export default function Overview() {
   const loadingContribs = !contributions;
   const loadingLocal     = !localContribs;
 
-  const [activeGraph, setActiveGraph]         = useState('github');
-  const [prPage, setPrPage]                   = useState(0);
-  const [issuePage, setIssuePage]             = useState(0);
+  const [activeGraph, setActiveGraph]   = useState('github');
+  const [selectedRepo, setSelectedRepo] = useState<string>('all');
+  const [activityTab, setActivityTab]   = useState<'prs' | 'issues'>('prs');
+  const [tablePage, setTablePage]       = useState(0);
 
   useEffect(() => {
     useAppStore.getState().loadOverviewData();
@@ -316,13 +233,33 @@ export default function Overview() {
   const streaks     = useMemo(() => computeStreaks(currentGraph?.weeks), [currentGraph]);
   const monthLabels = useMemo(() => computeMonthLabels(currentGraph?.weeks), [currentGraph]);
 
-  // Pagination
-  const prs            = data?.prs ?? [];
-  const issues         = data?.issues ?? [];
-  const prTotalPages   = Math.max(1, Math.ceil(prs.length / ITEMS_PER_PAGE));
-  const issTotalPages  = Math.max(1, Math.ceil(issues.length / ITEMS_PER_PAGE));
-  const visiblePrs     = prs.slice(prPage * ITEMS_PER_PAGE, (prPage + 1) * ITEMS_PER_PAGE);
-  const visibleIssues  = issues.slice(issuePage * ITEMS_PER_PAGE, (issuePage + 1) * ITEMS_PER_PAGE);
+  // Activity list & repo filtering
+  const prs    = data?.prs ?? [];
+  const issues = data?.issues ?? [];
+
+  const repoOptions = useMemo(() => {
+    const names = new Set<string>();
+    repos.forEach(r => names.add(r.name));
+    prs.forEach(p => { if (p.repository?.name) names.add(p.repository.name); });
+    issues.forEach(i => { if (i.repository?.name) names.add(i.repository.name); });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [repos, prs, issues]);
+
+  const filteredPrs = useMemo(() => {
+    if (selectedRepo === 'all') return prs;
+    return prs.filter(p => p.repository?.name?.toLowerCase() === selectedRepo.toLowerCase());
+  }, [prs, selectedRepo]);
+
+  const filteredIssues = useMemo(() => {
+    if (selectedRepo === 'all') return issues;
+    return issues.filter(i => i.repository?.name?.toLowerCase() === selectedRepo.toLowerCase());
+  }, [issues, selectedRepo]);
+
+  const activeItems   = activityTab === 'prs' ? filteredPrs : filteredIssues;
+  const totalPages    = Math.max(1, Math.ceil(activeItems.length / ROWS_PER_PAGE));
+  const pageStart     = tablePage * ROWS_PER_PAGE;
+  const pageEnd       = Math.min(pageStart + ROWS_PER_PAGE, activeItems.length);
+  const visibleItems  = activeItems.slice(pageStart, pageEnd);
 
   // Focus project
   const focusRepo = focusProject
@@ -513,94 +450,247 @@ export default function Overview() {
         />
       </div>
 
-      {/* ── Activity panels: PRs + Issues ───────────────────────────────── */}
-      <div className="overview-two-col">
-
-        {/* Pull Requests panel */}
-        <div className="overview-panel activity-panel">
-          {/* Panel header */}
-          <div className="activity-panel-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="activity-panel-icon pr-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                <GitPullRequest size={15} />
-              </span>
-              <span className="activity-panel-title">Pull Requests</span>
-            </div>
-            {!loading && prs.length > 0 && (
-              <span className="activity-count-badge">{prs.length} open</span>
-            )}
+      {/* ── Tabular Activity Section: PRs & Issues ──────────────────────── */}
+      <div className="activity-tabular-card">
+        {/* Toolbar */}
+        <div className="activity-toolbar">
+          <div className="activity-tab-group">
+            <button
+              type="button"
+              className={`activity-tab-btn ${activityTab === 'prs' ? 'active' : ''}`}
+              onClick={() => { setActivityTab('prs'); setTablePage(0); }}
+            >
+              <GitPullRequest size={15} />
+              <span>Pull Requests</span>
+              {!loading && (
+                <Badge variant={activityTab === 'prs' ? 'blue' : 'default'} style={{ fontSize: '0.7rem' }}>
+                  {filteredPrs.length}
+                </Badge>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`activity-tab-btn ${activityTab === 'issues' ? 'active' : ''}`}
+              onClick={() => { setActivityTab('issues'); setTablePage(0); }}
+            >
+              <AlertCircle size={15} />
+              <span>Issues</span>
+              {!loading && (
+                <Badge variant={activityTab === 'issues' ? 'orange' : 'default'} style={{ fontSize: '0.7rem' }}>
+                  {filteredIssues.length}
+                </Badge>
+              )}
+            </button>
           </div>
 
-          {/* Items */}
-          <div className="activity-items">
-            {loading ? (
-              <SkeletonCards rows={ITEMS_PER_PAGE} />
-            ) : !prs.length ? (
-              <EmptyState
-                icon={CheckCircle2}
-                title="All clear!"
-                description="No open pull requests across your repos."
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {visiblePrs.map((pr, i) => <PrCard key={`${pr.number}-${i}`} pr={pr} />)}
-              </div>
-            )}
+          <div className="activity-filter-box">
+            <Filter size={14} style={{ color: 'var(--text-muted)' }} />
+            <select
+              value={selectedRepo}
+              onChange={(e) => {
+                setSelectedRepo(e.target.value);
+                setTablePage(0);
+              }}
+              className="activity-repo-select"
+              aria-label="Filter by repository"
+            >
+              <option value="all">All Repositories ({repoOptions.length})</option>
+              {repoOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {/* Pagination */}
-          {!loading && prs.length > ITEMS_PER_PAGE && (
-            <Pagination
-              page={prPage}
-              totalPages={prTotalPages}
-              onPrev={() => setPrPage(p => Math.max(0, p - 1))}
-              onNext={() => setPrPage(p => Math.min(prTotalPages - 1, p + 1))}
-            />
-          )}
         </div>
 
-        {/* Issues panel */}
-        <div className="overview-panel activity-panel">
-          {/* Panel header */}
-          <div className="activity-panel-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="activity-panel-icon issue-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                <AlertCircle size={15} />
-              </span>
-              <span className="activity-panel-title">Issues</span>
-            </div>
-            {!loading && issues.length > 0 && (
-              <span className="activity-count-badge">{issues.length} open</span>
-            )}
+        {/* Table Content */}
+        {loading ? (
+          <div className="activity-table-wrapper">
+            <table className="activity-table">
+              <thead>
+                <tr>
+                  <th style={{ width: activityTab === 'prs' ? '42%' : '48%' }}>
+                    {activityTab === 'prs' ? 'Pull Request' : 'Issue'}
+                  </th>
+                  <th style={{ width: activityTab === 'prs' ? '18%' : '22%' }}>Repository</th>
+                  {activityTab === 'prs' && <th style={{ width: '14%' }}>Author</th>}
+                  {activityTab === 'prs' && <th style={{ width: '14%' }}>Review</th>}
+                  {activityTab === 'issues' && <th style={{ width: '18%' }}>Labels</th>}
+                  <th style={{ width: '12%', textAlign: 'right' }}>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                <TableSkeletonRows cols={activityTab === 'prs' ? 5 : 4} rows={ROWS_PER_PAGE} />
+              </tbody>
+            </table>
           </div>
+        ) : activeItems.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title={activityTab === 'prs' ? 'No pull requests found' : 'No issues found'}
+            description={
+              selectedRepo === 'all'
+                ? `All clear! No open ${activityTab === 'prs' ? 'pull requests' : 'issues'} across your repositories.`
+                : `No open ${activityTab === 'prs' ? 'pull requests' : 'issues'} found for repository "${selectedRepo}".`
+            }
+          />
+        ) : (
+          <div className="activity-table-wrapper">
+            <table className="activity-table">
+              <thead>
+                <tr>
+                  <th style={{ width: activityTab === 'prs' ? '40%' : '46%' }}>
+                    {activityTab === 'prs' ? 'Pull Request' : 'Issue'}
+                  </th>
+                  <th style={{ width: activityTab === 'prs' ? '18%' : '22%' }}>Repository</th>
+                  {activityTab === 'prs' && <th style={{ width: '14%' }}>Author</th>}
+                  {activityTab === 'prs' && <th style={{ width: '14%' }}>Review</th>}
+                  {activityTab === 'issues' && <th style={{ width: '20%' }}>Labels</th>}
+                  <th style={{ width: '14%', textAlign: 'right' }}>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activityTab === 'prs'
+                  ? visibleItems.map((pr: any, i: number) => {
+                      const age = ageBadge(pr.createdAt);
+                      return (
+                        <tr key={`${pr.number}-${i}`}>
+                          <td>
+                            <div className="activity-title-cell">
+                              <span className="pr-number-badge">#{pr.number}</span>
+                              <a
+                                href={pr.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="activity-title-link"
+                                title={pr.title}
+                              >
+                                {pr.title}
+                              </a>
+                              <a
+                                href={pr.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0 }}
+                                title="Open in GitHub"
+                              >
+                                <ExternalLink size={13} />
+                              </a>
+                            </div>
+                            {pr.labels && pr.labels.length > 0 && (
+                              <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                                {pr.labels.slice(0, 3).map((l: any, j: number) => (
+                                  <span key={j} className="activity-label">{l.name}</span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            {pr.repository?.name ? (
+                              <Badge variant="blue" style={{ fontSize: '0.72rem' }}>
+                                {pr.repository.name}
+                              </Badge>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td>
+                            {pr.author?.login ? (
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                @{pr.author.login}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td>
+                            {pr.reviewDecision ? (
+                              <ReviewBadge decision={pr.reviewDecision} />
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>None</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <span className={`age-badge ${age.cls}`}>{age.label}</span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  : visibleItems.map((issue: any, i: number) => {
+                      const age = ageBadge(issue.createdAt);
+                      return (
+                        <tr key={`${issue.number}-${i}`}>
+                          <td>
+                            <div className="activity-title-cell">
+                              <span className="issue-number-badge">#{issue.number}</span>
+                              <a
+                                href={issue.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="activity-title-link"
+                                title={issue.title}
+                              >
+                                {issue.title}
+                              </a>
+                              <a
+                                href={issue.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0 }}
+                                title="Open in GitHub"
+                              >
+                                <ExternalLink size={13} />
+                              </a>
+                            </div>
+                          </td>
+                          <td>
+                            {issue.repository?.name ? (
+                              <Badge variant="orange" style={{ fontSize: '0.72rem' }}>
+                                {issue.repository.name}
+                              </Badge>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td>
+                            {issue.labels && issue.labels.length > 0 ? (
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                {issue.labels.slice(0, 3).map((l: any, j: number) => (
+                                  <span key={j} className="activity-label">{l.name}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <span className={`age-badge ${age.cls}`}>{age.label}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {/* Items */}
-          <div className="activity-items">
-            {loading ? (
-              <SkeletonCards rows={ITEMS_PER_PAGE} />
-            ) : !issues.length ? (
-              <EmptyState
-                icon={CheckCircle2}
-                title="No open issues"
-                description="Your repos are looking healthy."
+        {/* Pagination Footer */}
+        {!loading && activeItems.length > 0 && (
+          <div className="activity-table-footer">
+            <span className="activity-table-count">
+              Showing <strong>{pageStart + 1}</strong>–<strong>{pageEnd}</strong> of <strong>{activeItems.length}</strong> {activityTab === 'prs' ? 'pull requests' : 'issues'}
+            </span>
+            {totalPages > 1 && (
+              <Pagination
+                page={tablePage}
+                totalPages={totalPages}
+                onPrev={() => setTablePage((p) => Math.max(0, p - 1))}
+                onNext={() => setTablePage((p) => Math.min(totalPages - 1, p + 1))}
               />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {visibleIssues.map((issue, i) => <IssueCard key={`${issue.number}-${i}`} issue={issue} />)}
-              </div>
             )}
           </div>
-
-          {/* Pagination */}
-          {!loading && issues.length > ITEMS_PER_PAGE && (
-            <Pagination
-              page={issuePage}
-              totalPages={issTotalPages}
-              onPrev={() => setIssuePage(p => Math.max(0, p - 1))}
-              onNext={() => setIssuePage(p => Math.min(issTotalPages - 1, p + 1))}
-            />
-          )}
-        </div>
+        )}
       </div>
 
       {/* ── Repo breakdown ───────────────────────────────────────────────── */}
