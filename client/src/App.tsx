@@ -31,10 +31,10 @@ const ENERGY_CONFIG = {
     label: 'All Modes',
     emoji: '⚡',
     desc: 'Show every section regardless of energy level.',
-    color: 'rgba(255,255,255,0.85)',
-    bg: 'rgba(255,255,255,0.06)',
-    border: 'rgba(255,255,255,0.1)',
-    glow: 'rgba(255,255,255,0.08)',
+    color: '#0f172a',
+    bg: 'rgba(0,0,0,0.04)',
+    border: 'rgba(0,0,0,0.08)',
+    glow: 'rgba(0,0,0,0.03)',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -45,10 +45,10 @@ const ENERGY_CONFIG = {
     label: 'Low Energy',
     emoji: '🌤',
     desc: 'Light review & triage tasks. Easy focus.',
-    color: '#38bdf8',
-    bg: 'rgba(56,189,248,0.1)',
-    border: 'rgba(56,189,248,0.25)',
-    glow: 'rgba(56,189,248,0.18)',
+    color: '#0284c7',
+    bg: 'rgba(2,132,199,0.08)',
+    border: 'rgba(2,132,199,0.22)',
+    glow: 'rgba(2,132,199,0.12)',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
@@ -59,10 +59,10 @@ const ENERGY_CONFIG = {
     label: 'Medium Energy',
     emoji: '⚡',
     desc: 'Releases, projects & balanced workload.',
-    color: '#fbbf24',
-    bg: 'rgba(251,191,36,0.1)',
-    border: 'rgba(251,191,36,0.25)',
-    glow: 'rgba(251,191,36,0.18)',
+    color: '#d97706',
+    bg: 'rgba(217,119,6,0.08)',
+    border: 'rgba(217,119,6,0.22)',
+    glow: 'rgba(217,119,6,0.12)',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -73,10 +73,10 @@ const ENERGY_CONFIG = {
     label: 'High Energy',
     emoji: '🔥',
     desc: 'Deep work: builds, focus, and active dev.',
-    color: '#f43f5e',
-    bg: 'rgba(244,63,94,0.1)',
-    border: 'rgba(244,63,94,0.25)',
-    glow: 'rgba(244,63,94,0.18)',
+    color: '#e11d48',
+    bg: 'rgba(225,29,72,0.08)',
+    border: 'rgba(225,29,72,0.22)',
+    glow: 'rgba(225,29,72,0.12)',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />

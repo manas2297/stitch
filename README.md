@@ -83,7 +83,7 @@ stitch/
       components/            ← Tab panels & UI elements
         focus/               ← PomodoroTimer, FocusChecklist, FocusScratchpad,
                                 ArchitectureDiagram (React Flow)
-        ui/                  ← AlertDialog
+        ui/                  ← Badge, EmptyState, StatCard
   config.json                ← Local repo database (gitignored)
 ```
 

@@ -107,7 +107,9 @@ stitch/
 │           │   ├── FocusScratchpad.tsx     # Per-project freeform notes (localStorage)
 │           │   └── ArchitectureDiagram.tsx # Interactive React Flow architecture canvas
 │           └── ui/
-│               └── AlertDialog.tsx         # Generic confirm dialog
+│               ├── Badge.tsx               # Reusable status/tag badges
+│               ├── EmptyState.tsx          # Standardized empty states
+│               └── StatCard.tsx            # Metric & KPI statistics cards
 │
 ├── config.json                     # Local repos database (gitignored)
 ├── config.example.json             # Template to bootstrap config.json

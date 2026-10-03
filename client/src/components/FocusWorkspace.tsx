@@ -4,6 +4,22 @@ import PomodoroTimer from './focus/PomodoroTimer';
 import FocusScratchpad from './focus/FocusScratchpad';
 import FocusChecklist from './focus/FocusChecklist';
 import ArchitectureDiagram from './focus/ArchitectureDiagram';
+import { Badge } from './ui/Badge';
+import { EmptyState } from './ui/EmptyState';
+import {
+  Lightbulb,
+  GitPullRequest,
+  FileCode,
+  GitBranch,
+  Bot,
+  Globe,
+  ExternalLink,
+  FolderTree,
+  Folder,
+  FileText,
+  Play,
+  Target,
+} from 'lucide-react';
 
 export default function FocusWorkspace() {
   const { repos, focusProject, setFocusProject } = useAppStore();
@@ -118,17 +134,18 @@ export default function FocusWorkspace() {
                 const value = repo.path || `${repo.owner}/${repo.name}`;
                 return (
                   <option key={i} value={value}>
-                    {repo.type === 'local' ? '💻' : '🌐'} {repo.name}
+                    [{repo.type === 'local' ? 'Local' : 'GitHub'}] {repo.name}
                   </option>
                 );
               })}
             </select>
           </div>
         </div>
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-          <h2>No Active Project in Focus</h2>
-          <p style={{ marginTop: 10 }}>Select a repository from the dropdown above to start working in the Focus Workspace.</p>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No Active Project in Focus"
+          description="Select a repository from the dropdown above to start working in the Focus Workspace."
+        />
       </div>
     );
   }
@@ -151,7 +168,7 @@ export default function FocusWorkspace() {
               const value = repo.path || `${repo.owner}/${repo.name}`;
               return (
                 <option key={i} value={value}>
-                  {repo.type === 'local' ? '💻' : '🌐'} {repo.name}
+                  [{repo.type === 'local' ? 'Local' : 'GitHub'}] {repo.name}
                 </option>
               );
             })}
@@ -180,8 +197,12 @@ export default function FocusWorkspace() {
             <div className="focus-main">
               {/* Features to Work On */}
               <div className="focus-card">
-                <h3><span>💡</span> Features to Work On</h3>
-                <div style={{ marginTop: 10 }}>
+                <h3>
+                  <Lightbulb size={18} style={{ color: '#d97706' }} />
+                  <span>Features to Work On</span>
+                  {features.length > 0 && <Badge variant="orange">{features.length}</Badge>}
+                </h3>
+                <div style={{ marginTop: 12 }}>
                   {features.length > 0 ? (
                     features.map((f: any) => (
                       <div
@@ -208,15 +229,19 @@ export default function FocusWorkspace() {
                           </a>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                          <span className="item-subtitle" style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                          <span className="item-subtitle" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                             by @{f.author?.login}
                           </span>
-                          <span className="badge badge-purple">Feature</span>
+                          <Badge variant="purple">Feature</Badge>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No active feature issues.</div>
+                    <EmptyState
+                      icon={Lightbulb}
+                      title="No active feature issues"
+                      description="Issues labeled 'feature' or 'enhancement' will appear here."
+                    />
                   )}
                 </div>
               </div>
@@ -229,8 +254,12 @@ export default function FocusWorkspace() {
 
               {/* PR Reviews */}
               <div className="focus-card">
-                <h3><span>👀</span> Pull Request Reviews</h3>
-                <div style={{ marginTop: 10 }}>
+                <h3>
+                  <GitPullRequest size={18} style={{ color: 'var(--primary)' }} />
+                  <span>Pull Request Reviews</span>
+                  {prs.length > 0 && <Badge variant="blue">{prs.length}</Badge>}
+                </h3>
+                <div style={{ marginTop: 12 }}>
                   {prs.length > 0 ? (
                     prs.map((pr: any) => (
                       <div
@@ -257,14 +286,18 @@ export default function FocusWorkspace() {
                           </a>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                          <span className="item-subtitle" style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                          <span className="item-subtitle" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                             by @{pr.author?.login}
                           </span>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No active pull request reviews.</div>
+                    <EmptyState
+                      icon={GitPullRequest}
+                      title="No active pull requests"
+                      description="Open pull requests will be listed here for quick review."
+                    />
                   )}
                 </div>
               </div>
@@ -279,13 +312,16 @@ export default function FocusWorkspace() {
                       alignItems: 'center',
                       borderBottom: '1px solid var(--border-color)',
                       paddingBottom: 8,
-                      marginBottom: 10,
+                      marginBottom: 12,
                     }}
                   >
-                    <span>📄 {fileViewer.path.split('/').pop()}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <FileCode size={18} style={{ color: 'var(--primary)' }} />
+                      <span>{fileViewer.path.split('/').pop()}</span>
+                    </span>
                     <button
                       className="btn btn-secondary"
-                      style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                      style={{ padding: '4px 10px', fontSize: '0.75rem' }}
                       onClick={() => setFileViewer(null)}
                     >
                       Close Viewer
@@ -294,15 +330,15 @@ export default function FocusWorkspace() {
                   <pre
                     style={{
                       margin: 0,
-                      background: '#05070c',
-                      padding: 12,
+                      background: '#f8fafc',
+                      padding: 14,
                       borderRadius: 8,
                       border: '1px solid var(--border-color)',
                       overflowX: 'auto',
                       fontFamily: 'monospace',
                       fontSize: '0.8rem',
                       maxHeight: 400,
-                      color: '#a9b1d6',
+                      color: '#0f172a',
                       whiteSpace: 'pre-wrap',
                     }}
                   >
@@ -322,7 +358,10 @@ export default function FocusWorkspace() {
               {isLocal ? (
                 <>
                   <div className="focus-card">
-                    <h3><span>🌱</span> Local Git State</h3>
+                    <h3>
+                      <GitBranch size={18} style={{ color: 'var(--primary)' }} />
+                      <span>Local Git State</span>
+                    </h3>
                     <div style={{ fontSize: '0.85rem', marginBottom: 12, color: 'var(--text-muted)' }}>
                       Branch: <strong style={{ color: 'var(--text-color)' }}>{data.repo?.branch || 'main'}</strong>
                     </div>
@@ -333,30 +372,40 @@ export default function FocusWorkspace() {
                         ))}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Working directory clean.</div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Working directory clean.</div>
                     )}
                   </div>
                   <div className="focus-card bot-review-card">
-                    <h3><span>🤖</span> Bot Review Diagnostics</h3>
+                    <h3>
+                      <Bot size={18} style={{ color: 'var(--primary)' }} />
+                      <span>Bot Review Diagnostics</span>
+                    </h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
                       Run a local validation script to audit build health.
                     </p>
-                    <button className="btn" style={{ width: '100%' }} onClick={runBotAudit} disabled={botRunning}>
-                      {botRunning ? 'Running…' : 'Run Build Audit'}
+                    <button
+                      className="btn"
+                      style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                      onClick={runBotAudit}
+                      disabled={botRunning}
+                    >
+                      <Play size={14} />
+                      <span>{botRunning ? 'Running…' : 'Run Build Audit'}</span>
                     </button>
                     {botOutput && (
                       <div
                         style={{
                           marginTop: 12,
-                          background: '#070810',
-                          padding: 10,
+                          background: '#0f172a',
+                          padding: 12,
                           borderRadius: 8,
                           fontFamily: 'monospace',
-                          fontSize: '0.75rem',
-                          border: '1px solid rgba(168,85,247,0.3)',
+                          fontSize: '0.78rem',
+                          border: '1px solid #1e293b',
                           maxHeight: 200,
                           overflowY: 'auto',
                           whiteSpace: 'pre-wrap',
+                          color: '#38bdf8',
                         }}
                       >
                         {botOutput}
@@ -367,7 +416,10 @@ export default function FocusWorkspace() {
               ) : (
                 <>
                   <div className="focus-card">
-                    <h3><span>🌐</span> Remote Repository Context</h3>
+                    <h3>
+                      <Globe size={18} style={{ color: 'var(--primary)' }} />
+                      <span>Remote Repository Context</span>
+                    </h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                       Remote GitHub repository. Local commands are disabled for web projects.
                     </p>
@@ -377,15 +429,19 @@ export default function FocusWorkspace() {
                         target="_blank"
                         rel="noreferrer"
                         className="btn"
-                        style={{ width: '100%', display: 'inline-flex', justifyContent: 'center' }}
+                        style={{ width: '100%', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
                       >
-                        View on GitHub 🔗
+                        <span>View on GitHub</span>
+                        <ExternalLink size={14} />
                       </a>
                     </div>
                   </div>
 
                   <div className="focus-card" style={{ marginTop: '1.5rem' }}>
-                    <h3><span>📁</span> Remote File Explorer</h3>
+                    <h3>
+                      <FolderTree size={18} style={{ color: 'var(--primary)' }} />
+                      <span>Remote File Explorer</span>
+                    </h3>
                     <div
                       style={{
                         fontSize: '0.8rem',
@@ -393,6 +449,7 @@ export default function FocusWorkspace() {
                         marginBottom: 10,
                         display: 'flex',
                         flexWrap: 'wrap',
+                        alignItems: 'center',
                         gap: 4,
                       }}
                     >
@@ -405,8 +462,8 @@ export default function FocusWorkspace() {
                       {breadcrumbParts.map((p, i) => {
                         const accumulated = breadcrumbParts.slice(0, i + 1).join('/');
                         return (
-                          <span key={i}>
-                            <span>/</span>
+                          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ color: 'var(--border-color)' }}>/</span>
                             <span
                               style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 600 }}
                               onClick={() => loadDir(accumulated)}
@@ -421,10 +478,10 @@ export default function FocusWorkspace() {
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 6,
+                        gap: 4,
                         maxHeight: 250,
                         overflowY: 'auto',
-                        background: 'rgba(0,0,0,0.2)',
+                        background: '#f8fafc',
                         padding: 8,
                         borderRadius: 8,
                         border: '1px solid var(--border-color)',
@@ -436,19 +493,24 @@ export default function FocusWorkspace() {
                           key={i}
                           style={{
                             display: 'flex',
-                            justifyContent: 'space-between',
                             alignItems: 'center',
-                            padding: 6,
+                            gap: 8,
+                            padding: '6px 10px',
                             cursor: 'pointer',
-                            borderRadius: 4,
-                            transition: 'background 0.2s',
+                            borderRadius: 6,
+                            transition: 'background 0.15s ease',
                           }}
                           onClick={() => (item.type === 'dir' ? loadDir(item.path) : loadFile(item.path))}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
                           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                         >
+                          {item.type === 'dir' ? (
+                            <Folder size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                          ) : (
+                            <FileText size={15} style={{ color: '#64748b', flexShrink: 0 }} />
+                          )}
                           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {item.type === 'dir' ? '📁' : '📄'} {item.name}
+                            {item.name}
                           </span>
                         </div>
                       ))}

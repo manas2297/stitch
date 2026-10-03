@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FileText, Eraser } from 'lucide-react';
 
 interface FocusScratchpadProps {
   focusProject: string;
@@ -21,16 +22,27 @@ export default function FocusScratchpad({ focusProject }: FocusScratchpadProps) 
   };
 
   return (
-    <div className="focus-card scratchpad-card">
+    <div className="focus-card scratchpad-card" style={{ padding: '1.5rem' }}>
       <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>📝 Focus Scratchpad</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <FileText size={18} style={{ color: 'var(--primary)' }} />
+          <span>Focus Scratchpad</span>
+        </span>
         <button
+          type="button"
           className="btn btn-secondary"
-          style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+          style={{
+            padding: '3px 8px',
+            fontSize: '0.75rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
           onClick={() => handleScratchpadChange('')}
           title="Clear notes"
         >
-          Clear
+          <Eraser size={13} />
+          <span>Clear</span>
         </button>
       </h3>
       <textarea
@@ -43,7 +55,7 @@ export default function FocusScratchpad({ focusProject }: FocusScratchpadProps) 
         <span>
           {scratchpadText.trim() ? scratchpadText.trim().split(/\s+/).length : 0} words • {scratchpadText.length} chars
         </span>
-        <span style={{ color: '#818cf8' }}>Auto-saved</span>
+        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Auto-saved</span>
       </div>
     </div>
   );
