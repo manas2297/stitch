@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Timer, Play, Pause, RotateCcw, Trophy } from 'lucide-react';
 
 interface PomodoroTimerProps {
   onSessionComplete?: () => void;
@@ -82,22 +83,28 @@ export default function PomodoroTimer({ onSessionComplete }: PomodoroTimerProps)
   };
 
   return (
-    <div className="focus-card pomodoro-card">
-      <h3><span>⏱️</span> Focus Timer</h3>
+    <div className="focus-card pomodoro-card" style={{ padding: '1.5rem' }}>
+      <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Timer size={18} style={{ color: 'var(--primary)' }} />
+        <span>Focus Timer</span>
+      </h3>
       <div className="pomodoro-modes">
         <button
+          type="button"
           className={`pomodoro-mode-btn ${timerMode === 'work' ? 'active' : ''}`}
           onClick={() => switchTimerMode('work')}
         >
           Focus (25m)
         </button>
         <button
+          type="button"
           className={`pomodoro-mode-btn ${timerMode === 'shortBreak' ? 'active' : ''}`}
           onClick={() => switchTimerMode('shortBreak')}
         >
           Short Break (5m)
         </button>
         <button
+          type="button"
           className={`pomodoro-mode-btn ${timerMode === 'longBreak' ? 'active' : ''}`}
           onClick={() => switchTimerMode('longBreak')}
         >
@@ -108,22 +115,38 @@ export default function PomodoroTimer({ onSessionComplete }: PomodoroTimerProps)
         <div className="pomodoro-time">{formatTime(timeLeft)}</div>
       </div>
       <div className="pomodoro-controls">
-        <button className="pomodoro-btn-main" onClick={toggleTimer}>
-          {isTimerRunning ? '⏸ Pause' : '▶ Start'}
+        <button
+          type="button"
+          className="pomodoro-btn-main"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onClick={toggleTimer}
+        >
+          {isTimerRunning ? <Pause size={15} /> : <Play size={15} />}
+          <span>{isTimerRunning ? 'Pause' : 'Start'}</span>
         </button>
         <button
+          type="button"
           className="btn btn-secondary"
-          style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+          style={{
+            padding: '8px 14px',
+            fontSize: '0.85rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+          }}
           onClick={resetTimer}
         >
-          🔄 Reset
+          <RotateCcw size={14} />
+          <span>Reset</span>
         </button>
       </div>
       <div className="pomodoro-stats">
-        <span>
-          Sessions Completed: <strong style={{ color: '#818cf8' }}>{completedSessions}</strong> 🏆
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Trophy size={14} style={{ color: '#d97706' }} />
+          <span>Sessions Completed:</span>
+          <strong style={{ color: 'var(--primary)' }}>{completedSessions}</strong>
         </span>
-        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           {timerMode === 'work' ? 'Stay Focused' : 'Take a Break'}
         </span>
       </div>

@@ -1,12 +1,37 @@
 import { useState, useEffect, useMemo } from 'react';
+import {
+  Package,
+  Star,
+  GitPullRequest,
+  AlertCircle,
+  Flame,
+  Search,
+  Target,
+  GitBranch,
+  ArrowRight,
+  Trophy,
+  GitGraph,
+  GitCommit,
+  CheckCircle2,
+  Check,
+  AlertTriangle,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Laptop,
+  Globe,
+} from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 import { useToast } from './Toast';
+import { StatCard } from './ui/StatCard';
+import { Badge } from './ui/Badge';
+import { EmptyState } from './ui/EmptyState';
 
 const ITEMS_PER_PAGE = 4;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function ageBadge(dateStr) {
+function ageBadge(dateStr: string) {
   const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
   if (days < 2)  return { cls: 'age-fresh',  label: 'Today' };
   if (days < 7)  return { cls: 'age-recent', label: `${Math.floor(days)}d ago` };
@@ -14,9 +39,19 @@ function ageBadge(dateStr) {
   return           { cls: 'age-stale',  label: `${Math.floor(days / 30)}mo ago` };
 }
 
-function computeStreaks(weeks) {
+interface ContributionDay {
+  date: string;
+  contributionCount: number;
+  color?: string;
+}
+
+interface ContributionWeek {
+  contributionDays: ContributionDay[];
+}
+
+function computeStreaks(weeks?: ContributionWeek[]) {
   if (!weeks) return { current: 0, longest: 0 };
-  const allDays = [];
+  const allDays: ContributionDay[] = [];
   for (const week of weeks)
     for (const day of week.contributionDays) allDays.push(day);
   allDays.sort((a, b) => a.date.localeCompare(b.date));
@@ -38,9 +73,9 @@ function computeStreaks(weeks) {
   return { current, longest };
 }
 
-function computeMonthLabels(weeks) {
+function computeMonthLabels(weeks?: ContributionWeek[]) {
   if (!weeks) return [];
-  const labels = [];
+  const labels: string[] = [];
   let lastMonth = -1;
   for (const week of weeks) {
     if (!week.contributionDays.length) { labels.push(''); continue; }
@@ -56,7 +91,8 @@ function computeMonthLabels(weeks) {
   return labels;
 }
 
-function prAccentColor(decision) {
+function prAccentColor(decision?: string) {
+  if (!decision) return 'rgba(139,155,180,0.2)';
   return {
     APPROVED:          '#34d399',
     CHANGES_REQUESTED: '#fbbf24',
@@ -66,19 +102,47 @@ function prAccentColor(decision) {
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function ReviewBadge({ decision }) {
+function ReviewBadge({ decision }: { decision?: string }) {
   if (!decision) return null;
-  const map = {
-    APPROVED:          { label: '✓ Approved', cls: 'review-badge-approved' },
-    CHANGES_REQUESTED: { label: '△ Changes',  cls: 'review-badge-changes'  },
-    REVIEW_REQUIRED:   { label: '◎ Review',   cls: 'review-badge-review'   },
+  const map: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
+    APPROVED: {
+      label: 'Approved',
+      icon: <Check size={12} style={{ marginRight: 4 }} />,
+      cls: 'review-badge-approved',
+    },
+    CHANGES_REQUESTED: {
+      label: 'Changes',
+      icon: <AlertTriangle size={12} style={{ marginRight: 4 }} />,
+      cls: 'review-badge-changes',
+    },
+    REVIEW_REQUIRED: {
+      label: 'Review',
+      icon: <Clock size={12} style={{ marginRight: 4 }} />,
+      cls: 'review-badge-review',
+    },
   };
   const b = map[decision];
   if (!b) return null;
-  return <span className={`review-badge ${b.cls}`}>{b.label}</span>;
+  return (
+    <span className={`review-badge ${b.cls}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+      {b.icon}
+      {b.label}
+    </span>
+  );
 }
 
-function PrCard({ pr }) {
+interface PrItem {
+  url: string;
+  number: number;
+  title: string;
+  createdAt: string;
+  reviewDecision?: string;
+  repository?: { name: string };
+  author?: { login: string };
+  labels?: Array<{ name: string }>;
+}
+
+function PrCard({ pr }: { pr: PrItem }) {
   const age = ageBadge(pr.createdAt);
   const accent = prAccentColor(pr.reviewDecision);
   return (
@@ -118,7 +182,16 @@ function PrCard({ pr }) {
   );
 }
 
-function IssueCard({ issue }) {
+interface IssueItem {
+  url: string;
+  number: number;
+  title: string;
+  createdAt: string;
+  repository?: { name: string };
+  labels?: Array<{ name: string }>;
+}
+
+function IssueCard({ issue }: { issue: IssueItem }) {
   const age = ageBadge(issue.createdAt);
   return (
     <a href={issue.url} target="_blank" rel="noreferrer" className="activity-card issue-card">
@@ -147,12 +220,28 @@ function IssueCard({ issue }) {
   );
 }
 
-function Pagination({ page, totalPages, onPrev, onNext }) {
+function Pagination({
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
   if (totalPages <= 1) return null;
   return (
     <div className="pagination-controls">
-      <button className="pagination-btn" onClick={onPrev} disabled={page === 0}>
-        ← Prev
+      <button
+        className="pagination-btn"
+        onClick={onPrev}
+        disabled={page === 0}
+        aria-label="Previous page"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        <ChevronLeft size={14} /> Prev
       </button>
       <div className="pagination-info">
         {totalPages <= 8
@@ -162,14 +251,20 @@ function Pagination({ page, totalPages, onPrev, onNext }) {
           : <span>{page + 1} / {totalPages}</span>
         }
       </div>
-      <button className="pagination-btn" onClick={onNext} disabled={page >= totalPages - 1}>
-        Next →
+      <button
+        className="pagination-btn"
+        onClick={onNext}
+        disabled={page >= totalPages - 1}
+        aria-label="Next page"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        Next <ChevronRight size={14} />
       </button>
     </div>
   );
 }
 
-function SkeletonCards({ rows = 3 }) {
+function SkeletonCards({ rows = 3 }: { rows?: number }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {Array.from({ length: rows }).map((_, i) => (
@@ -258,7 +353,9 @@ export default function Overview() {
           onKeyDown={e => e.key === 'Enter' && setActiveTab('focus')}
         >
           <div className="focus-mini-left">
-            <span className="focus-mini-icon">🎯</span>
+            <span className="focus-mini-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Target size={20} />
+            </span>
             <div>
               <div className="focus-mini-label">Current Focus</div>
               <div className="focus-mini-name">
@@ -267,8 +364,14 @@ export default function Overview() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {focusRepo.branch && <span className="focus-mini-branch">⎇ {focusRepo.branch}</span>}
-            <span className="focus-mini-jump">Open →</span>
+            {focusRepo.branch && (
+              <span className="focus-mini-branch" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <GitBranch size={13} /> {focusRepo.branch}
+              </span>
+            )}
+            <span className="focus-mini-jump" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              Open <ArrowRight size={13} />
+            </span>
           </div>
         </div>
       )}
@@ -277,22 +380,32 @@ export default function Overview() {
       <div className="contrib-calendar-container">
         <div className="contrib-calendar-header">
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-              🔥 Consistency &amp; Activity
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              <Flame size={15} style={{ color: '#f59e0b' }} /> Consistency &amp; Activity
             </h3>
             <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.03)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-              <button className={`inner-tab ${activeGraph === 'github' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: 6 }} onClick={() => setActiveGraph('github')}>
-                GitHub Graph
+              <button
+                className={`inner-tab ${activeGraph === 'github' ? 'active' : ''}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: '0.75rem', borderRadius: 6 }}
+                onClick={() => setActiveGraph('github')}
+              >
+                <GitGraph size={12} /> GitHub Graph
               </button>
-              <button className={`inner-tab ${activeGraph === 'local' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: 6 }} onClick={() => setActiveGraph('local')}>
-                Local Commits
+              <button
+                className={`inner-tab ${activeGraph === 'local' ? 'active' : ''}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: '0.75rem', borderRadius: 6 }}
+                onClick={() => setActiveGraph('local')}
+              >
+                <GitCommit size={12} /> Local Commits
               </button>
             </div>
             {!isGraphLoading && currentGraph?.weeks && (
               <div style={{ display: 'flex', gap: 6 }}>
-                <span className="streak-badge">🔥 {streaks.current}d streak</span>
-                <span className="streak-badge" style={{ background: 'rgba(139,155,180,0.08)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
-                  🏆 {streaks.longest}d best
+                <span className="streak-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Flame size={12} /> {streaks.current}d streak
+                </span>
+                <span className="streak-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(139,155,180,0.08)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
+                  <Trophy size={12} /> {streaks.longest}d best
                 </span>
               </div>
             )}
@@ -358,44 +471,46 @@ export default function Overview() {
         )}
       </div>
 
-      {/* ── Global Stats — 6 cards ──────────────────────────────────────── */}
+      {/* ── Global Stats — 6 cards using standard StatCard ───────────────── */}
       <div className="overview-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
-        <div className="overview-stat-card purple">
-          <div className="overview-stat-icon">📦</div>
-          <div className="overview-stat-val">{totalRepoCount}</div>
-          <div className="overview-stat-label">GitHub Repos</div>
-          {trackedCount < totalRepoCount && (
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>{trackedCount} tracked</div>
-          )}
-        </div>
-        <div className="overview-stat-card green">
-          <div className="overview-stat-icon">⭐</div>
-          <div className="overview-stat-val">{majorRepos.length}</div>
-          <div className="overview-stat-label">Major Projects</div>
-        </div>
-        <div className="overview-stat-card blue">
-          <div className="overview-stat-icon">⤳</div>
-          <div className="overview-stat-val">{loading ? '—' : prs.length}</div>
-          <div className="overview-stat-label">Open PRs</div>
-        </div>
-        <div className="overview-stat-card orange">
-          <div className="overview-stat-icon">⚠</div>
-          <div className="overview-stat-val">{loading ? '—' : issues.length}</div>
-          <div className="overview-stat-label">Open Issues</div>
-        </div>
-        <div className="overview-stat-card teal">
-          <div className="overview-stat-icon">🔥</div>
-          <div className="overview-stat-val">{isGraphLoading ? '—' : streaks.current}</div>
-          <div className="overview-stat-label">Day Streak</div>
-          {!isGraphLoading && streaks.longest > 0 && (
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>best: {streaks.longest}d</div>
-          )}
-        </div>
-        <div className="overview-stat-card pink">
-          <div className="overview-stat-icon">🔍</div>
-          <div className="overview-stat-val">{loading ? '—' : prs.length}</div>
-          <div className="overview-stat-label">Review Requests</div>
-        </div>
+        <StatCard
+          icon={Package}
+          variant="purple"
+          value={totalRepoCount}
+          label="GitHub Repos"
+          sublabel={trackedCount < totalRepoCount ? `${trackedCount} tracked` : undefined}
+        />
+        <StatCard
+          icon={Star}
+          variant="green"
+          value={majorRepos.length}
+          label="Major Projects"
+        />
+        <StatCard
+          icon={GitPullRequest}
+          variant="blue"
+          value={loading ? '—' : prs.length}
+          label="Open PRs"
+        />
+        <StatCard
+          icon={AlertCircle}
+          variant="orange"
+          value={loading ? '—' : issues.length}
+          label="Open Issues"
+        />
+        <StatCard
+          icon={Flame}
+          variant="teal"
+          value={isGraphLoading ? '—' : streaks.current}
+          label="Day Streak"
+          sublabel={!isGraphLoading && streaks.longest > 0 ? `best: ${streaks.longest}d` : undefined}
+        />
+        <StatCard
+          icon={Search}
+          variant="pink"
+          value={loading ? '—' : prs.length}
+          label="Review Requests"
+        />
       </div>
 
       {/* ── Activity panels: PRs + Issues ───────────────────────────────── */}
@@ -406,7 +521,9 @@ export default function Overview() {
           {/* Panel header */}
           <div className="activity-panel-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="activity-panel-icon pr-icon">⤳</span>
+              <span className="activity-panel-icon pr-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GitPullRequest size={15} />
+              </span>
               <span className="activity-panel-title">Pull Requests</span>
             </div>
             {!loading && prs.length > 0 && (
@@ -419,11 +536,11 @@ export default function Overview() {
             {loading ? (
               <SkeletonCards rows={ITEMS_PER_PAGE} />
             ) : !prs.length ? (
-              <div className="empty-state" style={{ padding: '2rem 1rem' }}>
-                <div className="empty-state-icon">🎉</div>
-                <div className="empty-state-title">All clear!</div>
-                <div className="empty-state-desc">No open pull requests across your repos.</div>
-              </div>
+              <EmptyState
+                icon={CheckCircle2}
+                title="All clear!"
+                description="No open pull requests across your repos."
+              />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {visiblePrs.map((pr, i) => <PrCard key={`${pr.number}-${i}`} pr={pr} />)}
@@ -447,7 +564,9 @@ export default function Overview() {
           {/* Panel header */}
           <div className="activity-panel-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="activity-panel-icon issue-icon">⚠</span>
+              <span className="activity-panel-icon issue-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertCircle size={15} />
+              </span>
               <span className="activity-panel-title">Issues</span>
             </div>
             {!loading && issues.length > 0 && (
@@ -460,11 +579,11 @@ export default function Overview() {
             {loading ? (
               <SkeletonCards rows={ITEMS_PER_PAGE} />
             ) : !issues.length ? (
-              <div className="empty-state" style={{ padding: '2rem 1rem' }}>
-                <div className="empty-state-icon">✅</div>
-                <div className="empty-state-title">No open issues</div>
-                <div className="empty-state-desc">Your repos are looking healthy.</div>
-              </div>
+              <EmptyState
+                icon={CheckCircle2}
+                title="No open issues"
+                description="Your repos are looking healthy."
+              />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {visibleIssues.map((issue, i) => <IssueCard key={`${issue.number}-${i}`} issue={issue} />)}
@@ -487,31 +606,47 @@ export default function Overview() {
       {/* ── Repo breakdown ───────────────────────────────────────────────── */}
       <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         <div className="overview-panel">
-          <div className="overview-panel-title"><span>💻</span> Local Repos ({localRepos.length})</div>
+          <div className="overview-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Laptop size={16} /> Local Repos ({localRepos.length})
+          </div>
           {localRepos.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None added yet.</div>
           ) : localRepos.map((r, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < localRepos.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
               <div>
                 <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{r.name}</span>
-                {r.branch && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 8, fontFamily: 'monospace' }}>⎇ {r.branch}</span>}
+                {r.branch && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 8, fontFamily: 'monospace' }}>
+                    <GitBranch size={11} /> {r.branch}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {r.isMajorProject && <span className="badge badge-green" style={{ fontSize: '0.65rem' }}>⭐</span>}
-                {!r.exists && <span className="badge badge-orange" style={{ fontSize: '0.65rem' }}>Missing</span>}
+                {r.isMajorProject && (
+                  <Badge variant="green" style={{ fontSize: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <Star size={10} /> Major
+                  </Badge>
+                )}
+                {!r.exists && <Badge variant="orange" style={{ fontSize: '0.65rem' }}>Missing</Badge>}
               </div>
             </div>
           ))}
         </div>
 
         <div className="overview-panel">
-          <div className="overview-panel-title"><span>🌐</span> Web Repos ({webRepos.length})</div>
+          <div className="overview-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Globe size={16} /> Web Repos ({webRepos.length})
+          </div>
           {webRepos.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None added yet.</div>
           ) : webRepos.map((r, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < webRepos.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
               <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{r.owner}/{r.name}</span>
-              {r.isMajorProject && <span className="badge badge-green" style={{ fontSize: '0.65rem' }}>⭐</span>}
+              {r.isMajorProject && (
+                <Badge variant="green" style={{ fontSize: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <Star size={10} /> Major
+                </Badge>
+              )}
             </div>
           ))}
         </div>
