@@ -1,24 +1,35 @@
 /*
  * Entry stylesheet: Tailwind v4 + shadcn/ui theme tokens.
  *
- * Preflight is intentionally skipped; the legacy global stylesheet already
- * provides the reset. The legacy CSS is imported into a lower-priority layer
- * so Tailwind utilities (p-4, gap-2, ...) always win over its `* { padding: 0 }`
+  * Preflight (Tailwind's reset) sits in `base`, below the legacy CSS, so
+ * shadcn components get their expected reset while legacy classes keep winning
+ * where they still apply. The legacy CSS is imported into a lower-priority
+ * layer so Tailwind utilities (p-4, gap-2, ...) always win over its `* { padding: 0 }`
  * style rules. Migrate screens to utilities/components incrementally, then
  * delete the matching rules from index.css.
  */
-@layer theme, legacy, base, components, utilities;
+@layer theme, base, legacy, components, utilities;
 
 @import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
 @import 'tailwindcss/utilities.css' layer(utilities);
 @import 'tw-animate-css';
 @import './index.css' layer(legacy);
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+}
 
 @custom-variant dark (&:is(.dark *));
 
 /* shadcn tokens mapped onto the existing palette (see :root in index.css) */
 :root {
   --radius: 0.75rem;
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --background: var(--bg-color);
   --foreground: var(--text-color);
   --card: #ffffff;
@@ -38,6 +49,7 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-sans);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

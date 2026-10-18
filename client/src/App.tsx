@@ -1,6 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { Menu } from 'lucide-react';
 import useAppStore from './store/useAppStore';
 import { ToastProvider } from './components/Toast';
+import { Button } from '@/components/ui/button';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import EnergyPanel from './components/layout/EnergyPanel';
+import ConfirmDialog from './components/layout/ConfirmDialog';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
 import FocusWorkspace from './components/FocusWorkspace';
@@ -26,180 +31,6 @@ const TABS = [
   { id: 'profile',      label: 'Profile',         icon: 'profile'      },
 ];
 
-const ENERGY_CONFIG = {
-  all: {
-    label: 'All Modes',
-    emoji: '⚡',
-    desc: 'Show every section regardless of energy level.',
-    color: '#0f172a',
-    bg: 'rgba(0,0,0,0.04)',
-    border: 'rgba(0,0,0,0.08)',
-    glow: 'rgba(0,0,0,0.03)',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    ),
-  },
-  low: {
-    label: 'Low Energy',
-    emoji: '🌤',
-    desc: 'Light review & triage tasks. Easy focus.',
-    color: '#0284c7',
-    bg: 'rgba(2,132,199,0.08)',
-    border: 'rgba(2,132,199,0.22)',
-    glow: 'rgba(2,132,199,0.12)',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
-      </svg>
-    ),
-  },
-  medium: {
-    label: 'Medium Energy',
-    emoji: '⚡',
-    desc: 'Releases, projects & balanced workload.',
-    color: '#d97706',
-    bg: 'rgba(217,119,6,0.08)',
-    border: 'rgba(217,119,6,0.22)',
-    glow: 'rgba(217,119,6,0.12)',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
-  high: {
-    label: 'High Energy',
-    emoji: '🔥',
-    desc: 'Deep work: builds, focus, and active dev.',
-    color: '#e11d48',
-    bg: 'rgba(225,29,72,0.08)',
-    border: 'rgba(225,29,72,0.22)',
-    glow: 'rgba(225,29,72,0.12)',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-      </svg>
-    ),
-  },
-};
-
-/** Floating energy mode chooser — chat-panel style, anchored bottom-right */
-function EnergyPanel({ activeEnergy, setActiveEnergy }) {
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef(null);
-  const cfg = ENERGY_CONFIG[activeEnergy];
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, []);
-
-  return (
-    <div className="energy-float-root" ref={panelRef}>
-      {/* ── Panel ─────────────────────────────────────── */}
-      <div className={`energy-float-panel ${open ? 'open' : ''}`}>
-        {/* Panel header */}
-        <div className="efp-header">
-          <div className="efp-header-left">
-            <div className="efp-header-dot" style={{ background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }} />
-            <span className="efp-header-title">Energy Mode</span>
-          </div>
-          <button className="efp-close" onClick={() => setOpen(false)} aria-label="Close">✕</button>
-        </div>
-
-        {/* Active mode hero */}
-        <div className="efp-active-hero" style={{ background: cfg.bg, borderColor: cfg.border }}>
-          <div className="efp-active-left">
-            <span className="efp-active-emoji">{cfg.emoji}</span>
-            <div>
-              <div className="efp-active-label" style={{ color: cfg.color }}>{cfg.label}</div>
-              <div className="efp-active-desc">{cfg.desc}</div>
-            </div>
-          </div>
-          <svg className="efp-active-check" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="7" stroke={cfg.color} strokeWidth="1.5" opacity="0.4" />
-            <path d="M5 8l2 2 4-4" stroke={cfg.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-
-        {/* Divider */}
-        <div className="efp-divider">
-          <span>Switch Mode</span>
-        </div>
-
-        {/* Mode options */}
-        <div className="efp-options">
-          {Object.entries(ENERGY_CONFIG).map(([key, conf]) => {
-            const isActive = key === activeEnergy;
-            return (
-              <button
-                key={key}
-                className={`efp-option ${isActive ? 'active' : ''}`}
-                style={isActive ? { background: conf.bg, borderColor: conf.border } : {}}
-                onClick={() => { setActiveEnergy(key); setOpen(false); }}
-              >
-                <span className="efp-option-icon" style={{ color: conf.color, stroke: conf.color }}>
-                  {conf.icon}
-                </span>
-                <div className="efp-option-text">
-                  <span className="efp-option-label" style={isActive ? { color: conf.color } : {}}>{conf.label}</span>
-                  <span className="efp-option-desc">{conf.desc}</span>
-                </div>
-                {isActive && (
-                  <svg className="efp-option-check" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 8l3 3 5-5" stroke={conf.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Footer hint */}
-        <div className="efp-footer">
-          Press <kbd>Esc</kbd> to close · Tab visibility updates instantly
-        </div>
-      </div>
-
-      {/* ── Trigger FAB ───────────────────────────────── */}
-      <button
-        className={`energy-fab ${open ? 'fab-open' : ''}`}
-        style={{
-          '--fab-color': cfg.color,
-          '--fab-glow': cfg.glow,
-          '--fab-bg': cfg.bg,
-          '--fab-border': cfg.border,
-        } as React.CSSProperties}
-        onClick={() => setOpen(v => !v)}
-        aria-label={`Energy mode: ${cfg.label}`}
-        title={`Current mode: ${cfg.label}. Click to switch.`}
-      >
-        <span className="fab-icon" style={{ color: cfg.color }}>
-          {cfg.icon}
-        </span>
-        <span className="fab-label" style={{ color: cfg.color }}>{cfg.label}</span>
-        <span className="fab-chevron" style={{ color: cfg.color }}>
-          {open ? '▾' : '▴'}
-        </span>
-      </button>
-    </div>
-  );
-}
-
 export default function App() {
   const {
     repos,
@@ -208,15 +39,16 @@ export default function App() {
     setActiveTab,
     setActiveEnergy,
     loadRepos,
-    sidebarCollapsed,
     tabEnergies,
     githubRepoCount,
-    confirmModal,
-    resolveConfirm,
   } = useAppStore();
 
   useEffect(() => {
     loadRepos();
+
+    // Deep link to a tab, e.g. /#releases
+    const hashTab = window.location.hash.slice(1);
+    if (TABS.some((t) => t.id === hashTab)) setActiveTab(hashTab);
 
     // Intercept clicks on external links when running inside Wails desktop app
     const handleExternalLinks = (e) => {
@@ -268,98 +100,64 @@ export default function App() {
     }
   };
 
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const trackedStats = [
+    { icon: '📦', value: githubRepoCount > 0 ? githubRepoCount : repos.length, label: 'repos' },
+    { icon: '⭐', value: majorCount, label: 'major' },
+    { icon: '💻', value: repos.filter((r) => r.type === 'local').length, label: 'local' },
+    { icon: '🌐', value: repos.length, label: 'tracked' },
+  ];
+
   return (
     <ToastProvider>
-      <header>
-        <div className="brand">
-          <div className="logo-glow" />
-          <h1>Stitch</h1>
-        </div>
+      <TooltipProvider delayDuration={150}>
+        <div className="flex min-h-screen flex-col">
+          <div
+            role="banner"
+            className="bg-background/85 sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b px-3 backdrop-blur sm:px-5"
+          >
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu />
+              </Button>
+              <div className="flex items-center gap-2.5">
+                <div className="from-primary to-accent size-3 rounded-full bg-gradient-to-br shadow-[0_0_12px_rgba(37,99,235,0.45)]" />
+                <h1 className="text-xl font-bold tracking-tight">Stitch</h1>
+              </div>
+            </div>
 
-        {(repos.length > 0 || githubRepoCount > 0) && (
-          <div className="header-stats">
-            <div className="header-stat">
-              <span>📦</span> <strong>{githubRepoCount > 0 ? githubRepoCount : repos.length}</strong> repos
-            </div>
-            <div className="header-stat-divider" />
-            <div className="header-stat">
-              <span>⭐</span> <strong>{majorCount}</strong> major
-            </div>
-            <div className="header-stat-divider" />
-            <div className="header-stat">
-              <span>💻</span> <strong>{repos.filter(r => r.type === 'local').length}</strong> local
-            </div>
-            <div className="header-stat-divider" />
-            <div className="header-stat">
-              <span>🌐</span> <strong>{repos.length}</strong> tracked
-            </div>
+            {(repos.length > 0 || githubRepoCount > 0) && (
+              <div className="text-muted-foreground hidden items-center gap-4 text-sm md:flex">
+                {trackedStats.map((stat, i) => (
+                  <div key={stat.label} className="flex items-center gap-4">
+                    {i > 0 && <span className="bg-border h-4 w-px" />}
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden>{stat.icon}</span>
+                      <strong className="text-foreground">{stat.value}</strong> {stat.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </header>
 
-      <main className={sidebarCollapsed ? 'sidebar-collapsed' : ''}>
-        <Sidebar tabs={tabsWithEnergy} visibleTabs={visibleTabs} />
-        <div className="content-panel">{renderSection()}</div>
-      </main>
-
-      {/* Floating energy mode panel — always on top, bottom-right */}
-      <EnergyPanel activeEnergy={activeEnergy} setActiveEnergy={setActiveEnergy} />
-
-      {confirmModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.65)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 99999,
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <div style={{
-            width: '100%',
-            maxWidth: '380px',
-            padding: '1.5rem',
-            borderRadius: '16px',
-            background: 'var(--panel-bg)',
-            border: '1px solid var(--border-color)',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            height: 'auto'
-          }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '-5px' }}>⚠️</div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-color)' }}>
-              {confirmModal.title}
-            </h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
-              {confirmModal.message}
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '0.5rem' }}>
-              <button
-                className="btn btn-secondary"
-                style={{ flex: 1, padding: '10px', fontSize: '0.85rem' }}
-                onClick={() => resolveConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn"
-                style={{ flex: 1, padding: '10px', fontSize: '0.85rem', background: '#e11d48' }}
-                onClick={() => resolveConfirm(true)}
-              >
-                Yes, Delete
-              </button>
-            </div>
+          <div className="flex min-w-0 flex-1">
+            <Sidebar visibleTabs={visibleTabs} mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
+            <main className="min-w-0 flex-1 p-3 sm:p-5 lg:p-8">
+              <div className="mx-auto w-full max-w-7xl">{renderSection()}</div>
+            </main>
           </div>
         </div>
-      )}
+
+        <EnergyPanel activeEnergy={activeEnergy} setActiveEnergy={setActiveEnergy} />
+        <ConfirmDialog />
+      </TooltipProvider>
     </ToastProvider>
   );
 }

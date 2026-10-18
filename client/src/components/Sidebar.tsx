@@ -1,60 +1,65 @@
-import useAppStore from '../store/useAppStore';
-import Icon from './Icon';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
-export default function Sidebar({ tabs, visibleTabs }) {
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
+import useAppStore from '../store/useAppStore';
+import NavList from './layout/NavList';
+
+export default function Sidebar({ visibleTabs, mobileOpen, onMobileOpenChange }) {
   const { activeTab, setActiveTab, sidebarCollapsed, toggleSidebarCollapsed } = useAppStore();
 
   return (
-    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-      {/* Dynamic Collapser Handle */}
-      <button 
-        className="sidebar-toggle-handle"
-        onClick={toggleSidebarCollapsed}
-        title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+    <>
+      {/* Desktop: persistent, collapsible rail */}
+      <aside
+        className={cn(
+          'bg-card/70 sticky top-14 hidden h-[calc(100vh-3.5rem)] shrink-0 flex-col gap-4 overflow-y-auto border-r p-3 transition-[width] duration-200 lg:flex',
+          sidebarCollapsed ? 'w-16' : 'w-64',
+        )}
       >
-        {sidebarCollapsed ? '›' : '‹'}
-      </button>
-
-      {/* Profile/Platform Header Brand (Only shown when expanded) */}
-      {!sidebarCollapsed && (
-        <div style={{ padding: '0 8px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.03)', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 600 }}>
-            Workspace Portal
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }} />
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-color)' }}>Developer Console</span>
-          </div>
+        <div className={cn('flex items-center', sidebarCollapsed ? 'justify-center' : 'justify-between px-1')}>
+          {!sidebarCollapsed && (
+            <div>
+              <div className="text-muted-foreground text-[0.68rem] font-semibold tracking-wider uppercase">
+                Workspace Portal
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
+                <span className="bg-success size-1.5 rounded-full" /> Developer Console
+              </div>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleSidebarCollapsed}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          </Button>
         </div>
-      )}
+        <NavList tabs={visibleTabs} activeTab={activeTab} collapsed={sidebarCollapsed} onSelect={setActiveTab} />
+      </aside>
 
-      {/* Navigation Menu */}
-      <ul className="menu-list">
-        {visibleTabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <li
-              key={tab.id}
-              className={`menu-item ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-              title={sidebarCollapsed ? tab.label : ''}
-              style={{ justifyContent: sidebarCollapsed ? 'center' : 'space-between', padding: sidebarCollapsed ? '14px 0' : '12px 16px' }}
-            >
-              <span className="menu-label" style={{ gap: sidebarCollapsed ? 0 : 12 }}>
-                <span className="menu-icon-slot" style={{ transform: isActive ? 'scale(1.1)' : 'none' }}>
-                  <Icon name={tab.icon} size={18} />
-                </span> 
-                {!sidebarCollapsed && <span className="menu-text-label">{tab.label}</span>}
-              </span>
-              {!sidebarCollapsed && (
-                <span className={`menu-badge badge-${tab.energy === 'all' ? 'all' : tab.energy}`}>
-                  {tab.energy === 'all' ? 'All' : tab.energy.charAt(0).toUpperCase() + tab.energy.slice(1)}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+      {/* Mobile / tablet: slide-in drawer */}
+      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
+        <SheetContent side="left" className="w-72 gap-0 p-0">
+          <SheetHeader className="border-b">
+            <SheetTitle>Stitch</SheetTitle>
+            <SheetDescription>Workspace navigation</SheetDescription>
+          </SheetHeader>
+          <div className="overflow-y-auto p-3">
+            <NavList
+              tabs={visibleTabs}
+              activeTab={activeTab}
+              onSelect={(id) => {
+                setActiveTab(id);
+                onMobileOpenChange(false);
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
