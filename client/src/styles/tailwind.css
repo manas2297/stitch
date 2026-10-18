@@ -15,6 +15,7 @@
 @import 'tailwindcss/utilities.css' layer(utilities);
 @import 'tw-animate-css';
 @import './index.css' layer(legacy);
+@import './markdown.css' layer(components);
 
 @layer base {
   *,
