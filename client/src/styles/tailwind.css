@@ -1,12 +1,11 @@
 /*
  * Entry stylesheet: Tailwind v4 + shadcn/ui theme tokens.
  * Components are styled with utilities; this file only holds design tokens,
- * the page background, and third-party overrides (markdown preview, React Flow).
+ * the page background, and third-party overrides (markdown preview).
  */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './markdown.css';
-@import './reactflow.css';
 
 @custom-variant dark (&:is(.dark *));
 

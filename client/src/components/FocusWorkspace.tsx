@@ -20,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import useAppStore, { apiFetch } from '../store/useAppStore';
-import ArchitectureDiagram from './focus/ArchitectureDiagram';
 import FocusCard from './focus/FocusCard';
 import FocusChecklist from './focus/FocusChecklist';
 import FocusScratchpad from './focus/FocusScratchpad';
@@ -233,7 +232,6 @@ export default function FocusWorkspace() {
             </FocusCard>
 
             <FocusChecklist focusProject={focusProject} />
-            <ArchitectureDiagram focusProject={focusProject} />
 
             <FocusCard
               icon={GitPullRequest}
