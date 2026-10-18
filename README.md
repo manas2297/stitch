@@ -130,7 +130,7 @@ Stitch runs in three modes:
 
 ### Prerequisites
 
-- **Go 1.24+**
+- **Go 1.25+**
 - **Node.js 18+**
 - **GitHub CLI** installed and authenticated:
 
@@ -145,8 +145,9 @@ gh auth login
 git clone https://github.com/manas2297/stitch.git
 cd stitch
 npm install
-go mod tidy   # from the backend/ directory
 ```
+
+Go modules are downloaded automatically on the first build — no separate `go mod tidy` is needed.
 
 ### 2. Configure
 
@@ -163,6 +164,9 @@ npm run dev
 - Backend (Go + Air): `http://localhost:4000`
 - Frontend (Vite): `http://localhost:5173` ← open this in your browser
 
+> **Ports:** the backend always uses `:4000` and Vite proxies `/api` to it, so make sure `:4000` and `:5173` are free. The first run is slower because Air is fetched via `go run`.
+> The web dev server and the desktop app both use `:4000`, so run only one at a time.
+
 ---
 
 ## Desktop App (Wails)
@@ -171,17 +175,28 @@ Stitch can be packaged as a standalone `.app` (macOS) using Wails.
 
 ### Install Wails
 
+Use the version pinned in `backend/go.mod` so `wails dev` doesn't rewrite `go.mod`/`go.sum`:
+
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
 ```
+
+Make sure Go's bin directory is on your `PATH` (add this to your shell profile if `wails` isn't found):
+
+```bash
+export PATH="$PATH:$(go env GOPATH)/bin"
+wails doctor   # verifies your system is ready
+```
+
+> If you previously installed Wails on a different CPU architecture (e.g. an x86_64 binary on Apple Silicon, which fails with `bad CPU type in executable`), re-run the `go install` command above.
 
 ### Dev mode (live-reload GUI window)
 
-Before first run, ensure you've run `npm install` from the repo root and copied `config.example.json` to `config.json`.
+Before first run, ensure you've run `npm install` from the repo root and copied `config.example.json` to `config.json`. Port `:4000` must be free (the embedded API listens there).
 
 ```bash
 cd backend
-~/go/bin/wails dev
+wails dev
 ```
 
 ### Build production `.app`
@@ -191,7 +206,7 @@ cd backend
 npm run build:client
 
 # 2. Package the app bundle
-cd backend && ~/go/bin/wails build -s
+cd backend && wails build -s
 ```
 
 Output: **`build/bin/Stitch.app`**
@@ -204,7 +219,7 @@ Output: **`build/bin/Stitch.app`**
 |-------|-----------|
 | Frontend | React 19, TypeScript, Vite, Zustand |
 | Diagrams | [@xyflow/react](https://reactflow.dev/) (React Flow) |
-| Backend | Go 1.24+ |
+| Backend | Go 1.25+ |
 | Desktop | [Wails v2](https://wails.io/) |
 | Dev hot-reload | [Air](https://github.com/air-verse/air) (Go), Vite HMR (React) |
 | Auth / GitHub API | [GitHub CLI (`gh`)](https://cli.github.com/) |
