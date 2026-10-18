@@ -1,64 +1,44 @@
-import { useState, useEffect } from 'react';
-import { useToast } from './Toast';
+import { useEffect, useState } from 'react';
+import {
+  Building2,
+  CalendarDays,
+  Copy,
+  ExternalLink,
+  Globe,
+  KeyRound,
+  MapPin,
+  RefreshCw,
+  Settings2,
+  SlidersHorizontal,
+  TriangleAlert,
+  User,
+  Wrench,
+  X,
+} from 'lucide-react';
+
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { INSTALL_GUIDES } from '@/lib/installGuides';
+import { cn } from '@/lib/utils';
 import useAppStore, { apiFetch } from '../store/useAppStore';
+import PageHeader from './layout/PageHeader';
+import { useToast } from './Toast';
 
-const TABS = [
-  { id: 'overview',     label: 'Overview' },
-  { id: 'repositories', label: 'Repositories' },
-  { id: 'focus',        label: 'Focus Area' },
-  { id: 'projects',     label: 'Major Projects' },
-  { id: 'releases',     label: 'Cut Release' },
-  { id: 'pr-reviews',   label: 'PR Reviews' },
-  { id: 'issues',       label: 'Issues' },
-  { id: 'builds',       label: 'Fix Builds' },
-  { id: 'profile',      label: 'Profile' },
-];
-
-const MISSING_INFO_MAP = {
-  go: {
-    cmd: "brew install go",
-    path: 'export PATH="/opt/homebrew/opt/go/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  node: {
-    cmd: "brew install node",
-    path: 'export PATH="/opt/homebrew/opt/node/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  npm: {
-    cmd: "brew install node # npm is bundled with Node.js",
-    path: 'export PATH="/opt/homebrew/opt/node/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  python: {
-    cmd: "brew install python",
-    path: 'export PATH="/opt/homebrew/opt/python/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  postgres: {
-    cmd: "brew install postgresql@14\nbrew services start postgresql@14",
-    path: 'export PATH="/opt/homebrew/opt/postgresql@14/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  mongo: {
-    cmd: "brew tap mongodb/brew\nbrew install mongodb-community@6.0\nbrew services start mongodb-community@6.0",
-    path: 'export PATH="/opt/homebrew/opt/mongodb-community@6.0/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  redis: {
-    cmd: "brew install redis\nbrew services start redis",
-    path: 'export PATH="/opt/homebrew/opt/redis/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  docker: {
-    cmd: "brew install --cask docker",
-    path: '# Docker Desktop is installed as a GUI app — no PATH changes needed.\n# Launch Docker.app from Applications after install.',
-  },
-  brew: {
-    cmd: '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-    path: 'export PATH="/opt/homebrew/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  bun: {
-    cmd: "curl -fsSL https://bun.sh/install | bash",
-    path: 'export BUN_INSTALL="$HOME/.bun"\nexport PATH="$BUN_INSTALL/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
-  rust: {
-    cmd: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh",
-    path: 'export PATH="$HOME/.cargo/bin:$PATH"\n# Load changes:\nsource ~/.zshrc',
-  },
+const TAB_LABELS: Record<string, string> = {
+  overview: 'Overview',
+  repositories: 'Repositories',
+  focus: 'Focus Area',
+  projects: 'Major Projects',
+  releases: 'Cut Release',
+  'pr-reviews': 'PR Reviews',
+  issues: 'Issues',
+  builds: 'Fix Builds',
+  profile: 'Profile',
 };
 
 /** Format a GitHub ISO date string to a friendly "Member since YYYY" label. */
@@ -68,6 +48,36 @@ function memberSince(isoStr) {
   return isNaN(year) ? null : `Member since ${year}`;
 }
 
+function Chip({ icon: Icon, children }) {
+  return (
+    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+      <Icon className="size-3.5" /> {children}
+    </span>
+  );
+}
+
+function CopyBlock({ step, text, toastMsg }: { step: string; text: string; toastMsg: string }) {
+  const toast = useToast();
+  return (
+    <div className="grid gap-1.5">
+      <span className="text-muted-foreground text-xs">{step}</span>
+      <div className="flex items-start gap-2">
+        <code className="bg-muted flex-1 rounded-md border p-2 font-mono text-xs break-all whitespace-pre-wrap">{text}</code>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            navigator.clipboard.writeText(text);
+            toast(toastMsg, 'success');
+          }}
+        >
+          <Copy /> Copy
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const toast = useToast();
   const [profile, setProfile] = useState(null);
@@ -75,14 +85,10 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Form inputs for Git configurations
-  const [gitName, setGitName]   = useState('');
+  const [gitName, setGitName] = useState('');
   const [gitEmail, setGitEmail] = useState('');
+  const [selectedMissing, setSelectedMissing] = useState<string | null>(null);
 
-  // Selected missing runtime hook at root level
-  const [selectedMissing, setSelectedMissing] = useState(null);
-
-  // Mode configurations state & actions
   const { tabEnergies, saveTabEnergies } = useAppStore();
   const [localTabEnergies, setLocalTabEnergies] = useState({});
   const [savingModes, setSavingModes] = useState(false);
@@ -105,10 +111,10 @@ export default function Profile() {
   const loadProfile = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res  = await apiFetch('/api/profile');
+      const res = await apiFetch('/api/profile');
       const data = await res.json();
       setProfile(data);
-      setGitName(data.git?.globalName  || '');
+      setGitName(data.git?.globalName || '');
       setGitEmail(data.git?.globalEmail || '');
     } catch {
       toast('Failed to load profile details.', 'error');
@@ -118,13 +124,15 @@ export default function Profile() {
     }
   };
 
-  useEffect(() => { loadProfile(); }, []);
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
   const handleUpdateGit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res  = await apiFetch('/api/profile/git', {
+      const res = await apiFetch('/api/profile/git', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: gitName, email: gitEmail }),
@@ -145,335 +153,281 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="section-content active">
-        <div className="skeleton skeleton-line full"  style={{ height: 24, marginBottom: 12 }} />
-        <div className="skeleton skeleton-line medium" style={{ height: 16 }} />
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+        <Skeleton className="mt-4 h-56 w-full" />
       </div>
     );
   }
 
   const gh = profile?.github ?? {};
   const since = memberSince(gh.createdAt);
+  const diagnostics = [
+    { label: 'Git Version', val: profile?.diagnostics?.gitVersion },
+    { label: 'GitHub CLI Version', val: profile?.diagnostics?.ghVersion },
+    { label: 'Operating System', val: profile?.diagnostics?.os },
+    { label: 'Active Shell', val: profile?.diagnostics?.shell },
+  ];
+  const guide = selectedMissing ? INSTALL_GUIDES[selectedMissing] : null;
 
   return (
-    <div className="section-content active" id="profile-section">
-      <div className="section-header" style={{ marginBottom: '2rem' }}>
-        <div className="section-title">
-          <h2>Developer Profile</h2>
-          <div className="section-desc">Manage your Git identity credentials and view system diagnostics.</div>
-        </div>
-      </div>
+    <section id="profile-section" className="flex flex-col gap-6">
+      <PageHeader
+        title="Developer Profile"
+        description="Manage your Git identity credentials and view system diagnostics."
+        className="mb-0"
+      />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-
-        {/* ── GitHub CLI Session ────────────────────────────────────────── */}
-        <div className="overview-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>🌐 GitHub CLI Session</h3>
-
-          {gh.username ? (
-            <>
-              {/* Avatar + name row */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* GitHub CLI session */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="size-4" /> GitHub CLI Session
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-5">
+            {gh.username ? (
+              <div className="flex items-start gap-4">
                 {gh.avatarUrl ? (
-                  <img
-                    src={gh.avatarUrl}
-                    alt="Avatar"
-                    style={{ width: 68, height: 68, borderRadius: '50%', border: '2px solid var(--border-color)', flexShrink: 0 }}
-                  />
+                  <img src={gh.avatarUrl} alt="Avatar" className="size-16 shrink-0 rounded-full border-2 sm:size-[68px]" />
                 ) : (
-                  <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>
-                    👤
+                  <div className="bg-muted flex size-16 shrink-0 items-center justify-center rounded-full">
+                    <User className="size-6" />
                   </div>
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <h4 style={{ margin: '0 0 2px', fontSize: '1.05rem' }}>@{gh.username}</h4>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-base font-bold">@{gh.username}</h4>
                     {gh.plan && gh.plan !== 'free' && (
-                      <span className="badge badge-green" style={{ fontSize: '0.62rem', textTransform: 'capitalize' }}>
+                      <Badge variant="green" className="text-[0.62rem] capitalize">
                         {gh.plan}
-                      </span>
+                      </Badge>
                     )}
                     {gh.sshKeyCount > 0 && (
-                      <span className="badge" style={{ fontSize: '0.62rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)' }}>
-                        🔑 {gh.sshKeyCount} SSH key{gh.sshKeyCount !== 1 ? 's' : ''}
-                      </span>
+                      <Badge className="border text-[0.62rem]">
+                        <KeyRound /> {gh.sshKeyCount} SSH key{gh.sshKeyCount !== 1 ? 's' : ''}
+                      </Badge>
                     )}
                   </div>
-
-                  {gh.email && (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 2 }}>{gh.email}</div>
-                  )}
-
-                  {gh.bio && (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-color)', fontStyle: 'italic', margin: '4px 0', lineHeight: 1.4, maxWidth: 260, wordBreak: 'break-word' }}>
-                      {gh.bio}
-                    </div>
-                  )}
-
-                  {/* Followers / Following */}
+                  {gh.email && <div className="text-muted-foreground text-sm break-all">{gh.email}</div>}
+                  {gh.bio && <p className="text-sm break-words italic">{gh.bio}</p>}
                   {(gh.followers > 0 || gh.following > 0) && (
-                    <div className="profile-stat-row">
-                      <span className="profile-stat-chip">
+                    <div className="flex gap-3 text-sm">
+                      <span>
                         <strong>{gh.followers.toLocaleString()}</strong> followers
                       </span>
-                      <span className="profile-stat-chip">
+                      <span>
                         <strong>{gh.following.toLocaleString()}</strong> following
                       </span>
                     </div>
                   )}
-
-                  {/* Location / Company / Since */}
                   {(gh.location || gh.company || since) && (
-                    <div className="profile-meta-row">
-                      {gh.location && <span className="profile-meta-chip">📍 {gh.location}</span>}
-                      {gh.company  && <span className="profile-meta-chip">🏢 {gh.company}</span>}
-                      {since       && <span className="profile-meta-chip">📅 {since}</span>}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {gh.location && <Chip icon={MapPin}>{gh.location}</Chip>}
+                      {gh.company && <Chip icon={Building2}>{gh.company}</Chip>}
+                      {since && <Chip icon={CalendarDays}>{since}</Chip>}
                     </div>
                   )}
-
                   <a
                     href={`https://github.com/${gh.username}`}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ fontSize: '0.78rem', color: 'var(--primary)', textDecoration: 'none', display: 'inline-block', marginTop: 8 }}
+                    className="text-primary inline-flex items-center gap-1 pt-1 text-xs hover:underline"
                   >
-                    View Profile ↗
+                    View Profile <ExternalLink className="size-3" />
                   </a>
                 </div>
               </div>
-            </>
-          ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Not authenticated. Run <code>gh auth login</code> inside your terminal to link your GitHub account.
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Not authenticated. Run <code className="bg-muted rounded px-1">gh auth login</code> inside your terminal
+                to link your GitHub account.
+              </p>
+            )}
+
+            <div className="mt-auto border-t pt-5">
+              <h4 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">
+                Authentication Status
+              </h4>
+              <div className="flex items-center gap-2 text-sm">
+                <span className={cn('size-2 rounded-full', gh.username ? 'bg-success' : 'bg-destructive')} />
+                {gh.username ? 'Logged in via Keychain' : 'Logged out'}
+              </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginTop: 'auto' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Authentication Status
-            </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: gh.username ? 'var(--success)' : 'var(--error)', flexShrink: 0 }} />
-              <span>{gh.username ? 'Logged in via Keychain' : 'Logged out'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Global Git Identity ───────────────────────────────────────── */}
-        <div className="overview-panel">
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem' }}>⚙️ Global Git Identity</h3>
-
-          <form onSubmit={handleUpdateGit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Global Username (`user.name`)</label>
-              <input
-                type="text"
-                className="filter-input"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)' }}
-                value={gitName}
-                onChange={(e) => setGitName(e.target.value)}
-                placeholder="John Doe"
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Global Email (`user.email`)</label>
-              <input
-                type="email"
-                className="filter-input"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)' }}
-                value={gitEmail}
-                onChange={(e) => setGitEmail(e.target.value)}
-                placeholder="johndoe@example.com"
-              />
-            </div>
-
-            <button type="submit" className="btn" style={{ alignSelf: 'flex-start', marginTop: 8 }} disabled={saving}>
-              {saving ? 'Saving...' : 'Update Git Config'}
-            </button>
-          </form>
-
-          {/* Email mismatch warning */}
-          {profile?.git?.emailMismatch && (
-            <div className="identity-warning">
-              <span className="identity-warning-icon">⚠️</span>
+        {/* Global git identity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings2 className="size-4" /> Global Git Identity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <form onSubmit={handleUpdateGit} className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="git-name">
+                  Global Username (<code>user.name</code>)
+                </Label>
+                <Input id="git-name" value={gitName} onChange={(e) => setGitName(e.target.value)} placeholder="John Doe" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="git-email">
+                  Global Email (<code>user.email</code>)
+                </Label>
+                <Input
+                  id="git-email"
+                  type="email"
+                  value={gitEmail}
+                  onChange={(e) => setGitEmail(e.target.value)}
+                  placeholder="johndoe@example.com"
+                />
+              </div>
               <div>
-                <strong>Email mismatch detected.</strong> Your GitHub CLI email (<code>{gh.email}</code>) differs from
-                your global git email (<code>{profile.git.globalEmail}</code>). Commits may be attributed to the wrong
-                account or appear unsigned on GitHub.
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : 'Update Git Config'}
+                </Button>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            </form>
 
-      {/* ── Diagnostics / Runtimes ────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', marginTop: '2rem' }}>
-
-        {/* Diagnostics panel */}
-        <div className="overview-panel">
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem' }}>💻 Diagnostics</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {[
-              { label: 'Git Version',        val: profile?.diagnostics?.gitVersion || 'Unknown' },
-              { label: 'GitHub CLI Version', val: profile?.diagnostics?.ghVersion  || 'Unknown' },
-              { label: 'Operating System',   val: profile?.diagnostics?.os         || 'Unknown' },
-              { label: 'Active Shell',       val: profile?.diagnostics?.shell      || 'Unknown' },
-            ].map(({ label, val }) => (
-              <div key={label}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{label}</div>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--text-color)', marginTop: 2, display: 'block' }}>
-                  {val}
-                </strong>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Runtimes & Databases panel */}
-        <div className="overview-panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>🛠️ Runtimes &amp; Tools</h3>
-            <button
-              className="btn btn-secondary"
-              style={{ padding: '4px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}
-              onClick={() => loadProfile(true)}
-              disabled={refreshing}
-            >
-              {refreshing ? '↻ Refreshing…' : '↻ Refresh'}
-            </button>
-          </div>
-
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: selectedMissing ? '1.5rem' : 0 }}>
-              {profile?.runtimes && Object.entries(profile.runtimes).map(([key, val]) => {
-                const cleanedVal = typeof val === 'string' ? val.trim() : String(val || '').trim();
-                const installed  = cleanedVal !== '' && cleanedVal !== 'Not Installed';
-                const isSelected = selectedMissing === key;
-
-                return (
-                  <div
-                    key={key}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: 8,
-                      background: isSelected ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.01)',
-                      border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                      cursor: !installed ? 'pointer' : 'default',
-                      transition: 'all 0.2s',
-                    }}
-                    onClick={() => { if (!installed) setSelectedMissing(isSelected ? null : key); }}
-                    title={!installed ? 'Click to view install guide' : ''}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{key}</span>
-                      <span className={`badge ${installed ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.6rem', padding: '1px 5px', textTransform: 'none' }}>
-                        {installed ? 'Installed' : 'Missing'}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'block', marginTop: 2 }}>
-                      {installed ? cleanedVal : 'Click to install →'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Install guide drawer */}
-            {selectedMissing && MISSING_INFO_MAP[selectedMissing] && (
-              <div className="overview-panel" style={{ background: 'rgba(244,63,94,0.03)', border: '1px solid rgba(244,63,94,0.15)', animation: 'fadeIn 0.25s' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '0.8rem', color: 'var(--energy-high)', fontWeight: 700 }}>
-                    🛠️ Setup Guide: {selectedMissing}
-                  </h4>
-                  <button onClick={() => setSelectedMissing(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem' }}>
-                    ×
-                  </button>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>1. Install command (macOS Homebrew)</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <code style={{ flex: 1, background: '#07080d', border: '1px solid var(--border-color)', padding: '6px 10px', borderRadius: 6, fontSize: '0.78rem', color: 'var(--text-color)', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-                      {MISSING_INFO_MAP[selectedMissing].cmd}
-                    </code>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ padding: '6px 10px', fontSize: '0.72rem' }}
-                      onClick={() => { navigator.clipboard.writeText(MISSING_INFO_MAP[selectedMissing].cmd); toast('Command copied!', 'success'); }}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>2. Append to Path (zsh)</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <code style={{ flex: 1, background: '#07080d', border: '1px solid var(--border-color)', padding: '6px 10px', borderRadius: 6, fontSize: '0.78rem', color: 'var(--text-color)', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-                      {MISSING_INFO_MAP[selectedMissing].path}
-                    </code>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ padding: '6px 10px', fontSize: '0.72rem' }}
-                      onClick={() => { navigator.clipboard.writeText(MISSING_INFO_MAP[selectedMissing].path); toast('Path setup copied!', 'success'); }}
-                    >
-                      Copy
-                    </button>
-                  </div>
+            {profile?.git?.emailMismatch && (
+              <div role="alert" className="flex gap-3 rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-900">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                <div>
+                  <strong>Email mismatch detected.</strong> Your GitHub CLI email (<code>{gh.email}</code>) differs from
+                  your global git email (<code>{profile.git.globalEmail}</code>). Commits may be attributed to the wrong
+                  account or appear unsigned on GitHub.
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* ── Mode Configurations ───────────────────────────────────────────── */}
-      <div className="overview-panel" style={{ marginTop: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>🎯 Section Mode Configuration</h3>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              Define which energy mode category each navigation section belongs to.
-            </div>
-          </div>
-          <button onClick={handleSaveModes} className="btn" disabled={savingModes} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
-            {savingModes ? 'Saving...' : 'Save Configurations'}
-          </button>
-        </div>
-
-        <div className="mode-config-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-          {Object.entries(localTabEnergies).map(([tabId, currentEnergy]) => {
-            const label = TABS.find(t => t.id === tabId)?.label || tabId.charAt(0).toUpperCase() + tabId.slice(1);
-            return (
-              <div
-                key={tabId}
-                className="mode-config-card"
-                style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, transition: 'all 0.2s' }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{label}</span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {tabId}</span>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">Diagnostics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-4 lg:grid-cols-1">
+              {diagnostics.map(({ label, val }) => (
+                <div key={label}>
+                  <dt className="text-muted-foreground text-xs">{label}</dt>
+                  <dd className="mt-0.5 text-sm font-semibold break-words">{val || 'Unknown'}</dd>
                 </div>
-                <select
-                  value={currentEnergy as string}
-                  onChange={(e) => setLocalTabEnergies(prev => ({ ...prev, [tabId]: e.target.value }))}
-                  className="mode-select-dropdown"
-                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'var(--text-color)', borderRadius: 8, padding: '6px 12px', fontSize: '0.8rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
-                >
-                  <option value="all">All Modes</option>
-                  <option value="low">Low Energy</option>
-                  <option value="medium">Medium Energy</option>
-                  <option value="high">High Energy</option>
-                </select>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="size-4" /> Runtimes &amp; Tools
+            </CardTitle>
+            <CardAction>
+              <Button variant="secondary" size="sm" onClick={() => loadProfile(true)} disabled={refreshing}>
+                <RefreshCw className={cn(refreshing && 'animate-spin')} /> {refreshing ? 'Refreshing…' : 'Refresh'}
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {profile?.runtimes &&
+                Object.entries(profile.runtimes).map(([key, val]) => {
+                  const cleaned = typeof val === 'string' ? val.trim() : String(val || '').trim();
+                  const installed = cleaned !== '' && cleaned !== 'Not Installed';
+                  const isSelected = selectedMissing === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={installed}
+                      onClick={() => setSelectedMissing(isSelected ? null : key)}
+                      title={!installed ? 'Click to view install guide' : undefined}
+                      className={cn(
+                        'flex flex-col gap-1 rounded-lg border px-3.5 py-2.5 text-left transition-colors disabled:cursor-default',
+                        !installed && 'hover:bg-muted/50 cursor-pointer',
+                        isSelected && 'border-primary bg-muted/50',
+                      )}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold tracking-wide uppercase">{key}</span>
+                        <Badge variant={installed ? 'green' : 'red'} className="px-1.5 py-0.5 text-[0.6rem] normal-case">
+                          {installed ? 'Installed' : 'Missing'}
+                        </Badge>
+                      </span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {installed ? cleaned : 'Click to install →'}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+
+            {guide && (
+              <div className="border-destructive/20 bg-destructive/5 grid gap-4 rounded-lg border p-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-destructive text-sm font-bold uppercase">Setup Guide: {selectedMissing}</h4>
+                  <Button variant="ghost" size="icon-sm" onClick={() => setSelectedMissing(null)} aria-label="Close guide">
+                    <X />
+                  </Button>
+                </div>
+                <CopyBlock step="1. Install command (macOS Homebrew)" text={guide.cmd} toastMsg="Command copied!" />
+                <CopyBlock step="2. Append to Path (zsh)" text={guide.path} toastMsg="Path setup copied!" />
               </div>
-            );
-          })}
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+
+      {/* Mode configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <SlidersHorizontal className="size-4" /> Section Mode Configuration
+          </CardTitle>
+          <CardDescription>Define which energy mode category each navigation section belongs to.</CardDescription>
+          <CardAction>
+            <Button onClick={handleSaveModes} disabled={savingModes}>
+              {savingModes ? 'Saving...' : 'Save'}{" "}
+              <span className="hidden sm:inline">Configurations</span>
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Object.entries(localTabEnergies).map(([tabId, currentEnergy]) => (
+              <div key={tabId} className="flex items-center justify-between gap-3 rounded-xl border p-3.5">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">
+                    {TAB_LABELS[tabId] || tabId.charAt(0).toUpperCase() + tabId.slice(1)}
+                  </div>
+                  <div className="text-muted-foreground text-xs">ID: {tabId}</div>
+                </div>
+                <Select
+                  value={currentEnergy as string}
+                  onValueChange={(v) => setLocalTabEnergies((prev) => ({ ...prev, [tabId]: v }))}
+                >
+                  <SelectTrigger className="w-40 shrink-0" aria-label={`${tabId} energy mode`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Modes</SelectItem>
+                    <SelectItem value="low">Low Energy</SelectItem>
+                    <SelectItem value="medium">Medium Energy</SelectItem>
+                    <SelectItem value="high">High Energy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
