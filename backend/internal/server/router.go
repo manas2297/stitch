@@ -7,6 +7,7 @@ import (
 
 	"stitch/internal/server/build"
 	"stitch/internal/server/contributions"
+	"stitch/internal/server/diagrams"
 	"stitch/internal/server/focus"
 	"stitch/internal/server/ideas"
 	"stitch/internal/server/monitor"
@@ -69,6 +70,16 @@ func Routes() http.Handler {
 	mux.HandleFunc("GET /api/providers", monitor.HandleGetProviders)
 	mux.HandleFunc("GET /api/provider/{provider}/analysis", monitor.HandleGetProviderAnalysis)
 	mux.HandleFunc("POST /api/provider/{provider}/cleanup", monitor.HandlePostProviderCleanup)
+
+	// 9. Architecture diagrams (StitchDraw drawings)
+	mux.HandleFunc("GET /api/diagrams", diagrams.HandleList)
+	mux.HandleFunc("POST /api/diagrams", diagrams.HandleCreate)
+	mux.HandleFunc("GET /api/diagrams/file", diagrams.HandleGet)
+	mux.HandleFunc("PUT /api/diagrams/file", diagrams.HandleSave)
+	mux.HandleFunc("DELETE /api/diagrams/file", diagrams.HandleDelete)
+	mux.HandleFunc("POST /api/diagrams/rename", diagrams.HandleRename)
+	mux.HandleFunc("GET /api/diagrams/library", diagrams.HandleGetLibrary)
+	mux.HandleFunc("PUT /api/diagrams/library", diagrams.HandleSaveLibrary)
 
 	// Static client file hosting (Vite build target)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
