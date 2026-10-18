@@ -17,11 +17,14 @@ import Builds from './components/Builds';
 import Repositories from './components/Repositories';
 import Profile from './components/Profile';
 import AIMonitor from './components/AIMonitor';
+import Architecture from './components/Architecture';
+import { cn } from '@/lib/utils';
 
 const TABS = [
   { id: 'overview',     label: 'Overview',       icon: 'overview'     },
   { id: 'repositories', label: 'Repositories',   icon: 'repositories' },
   { id: 'focus',        label: 'Focus Area',      icon: 'focus'        },
+  { id: 'architecture', label: 'Architecture',    icon: 'architecture' },
   { id: 'projects',     label: 'Major Projects',  icon: 'projects'     },
   { id: 'releases',     label: 'Cut Release',     icon: 'releases'     },
   { id: 'pr-reviews',   label: 'PR Reviews',      icon: 'pr-reviews'   },
@@ -95,6 +98,7 @@ export default function App() {
       case 'issues':       return <Issues />;
       case 'builds':       return <Builds />;
       case 'ai-monitor':   return <AIMonitor />;
+      case 'architecture': return <Architecture />;
       case 'profile':      return <Profile />;
       default:             return null;
     }
@@ -150,12 +154,13 @@ export default function App() {
           <div className="flex min-w-0 flex-1">
             <Sidebar visibleTabs={visibleTabs} mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
             <main className="min-w-0 flex-1 p-3 sm:p-5 lg:p-8">
-              <div className="mx-auto w-full max-w-7xl">{renderSection()}</div>
+              <div className={cn('mx-auto w-full', activeTab !== 'architecture' && 'max-w-7xl')}>{renderSection()}</div>
             </main>
           </div>
         </div>
 
-        <EnergyPanel activeEnergy={activeEnergy} setActiveEnergy={setActiveEnergy} />
+        {/* Hidden on the whiteboard, where it would cover Excalidraw's controls. */}
+        {activeTab !== 'architecture' && <EnergyPanel activeEnergy={activeEnergy} setActiveEnergy={setActiveEnergy} />}
         <ConfirmDialog />
       </TooltipProvider>
     </ToastProvider>

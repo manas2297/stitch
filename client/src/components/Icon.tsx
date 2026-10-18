@@ -6,6 +6,7 @@ import {
   Hammer,
   Home,
   ListChecks,
+  Shapes,
   Tag,
   TriangleAlert,
   User,
@@ -23,6 +24,7 @@ const icons: Record<string, LucideIcon> = {
   builds: Hammer,
   profile: User,
   'gemini-monitor': BarChart3,
+  architecture: Shapes,
 };
 
 export default function Icon({ name, className = '', size = 18 }) {
