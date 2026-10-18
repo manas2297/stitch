@@ -1,6 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Globe, Laptop, Star, Target } from 'lucide-react';
+
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { cn } from '@/lib/utils';
 import useAppStore, { apiFetch } from '../store/useAppStore';
+import PageHeader from './layout/PageHeader';
 import ProjectDetail from './ProjectDetail';
+
+function Stat({ value, label, className }: { value: number | string; label: string; className?: string }) {
+  return (
+    <div className="bg-muted/50 rounded-lg px-2 py-2.5 text-center">
+      <div className={cn('text-xl font-extrabold', className)}>{value}</div>
+      <div className="text-muted-foreground text-[0.65rem] font-medium tracking-wider uppercase">{label}</div>
+    </div>
+  );
+}
 
 export default function MajorProjects() {
   const repos = useAppStore((s) => s.repos);
@@ -27,71 +43,66 @@ export default function MajorProjects() {
   }
 
   return (
-    <div className="section-content active" id="projects-section">
-      <div className="section-header">
-        <div className="section-title">
-          <h2>Major Projects</h2>
-          <div className="section-desc">Track and prioritize key repositories you've designated as major projects.</div>
-        </div>
-      </div>
+    <section id="projects-section">
+      <PageHeader
+        title="Major Projects"
+        description="Track and prioritize key repositories you've designated as major projects."
+      />
 
       {majorRepos.length === 0 ? (
-        <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>🎯</div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>No Major Projects yet</div>
-          <div style={{ fontSize: '0.85rem' }}>
-            Click the ☆ star icon next to any repository in the sidebar to track it here.
-          </div>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No Major Projects yet"
+          description="Star any repository on the Repositories page to track it here."
+        />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {majorRepos.map((repo) => {
             const key = `${repo.owner}/${repo.name}`;
             const s = stats[key];
+            const count = (list: unknown[] | undefined) => (s ? (list?.length ?? 0) : '—');
 
             return (
-              <div
+              <Card
                 key={key}
-                className="major-project-card"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedProject(repo)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setSelectedProject(repo)}
+                className="hover:border-primary/40 focus-visible:ring-ring/50 group cursor-pointer outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-[3px]"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span>{repo.type === 'local' ? '💻' : '🌐'}</span> {repo.name}
+                <CardContent className="flex flex-col gap-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-lg font-bold">
+                        {repo.type === 'local' ? <Laptop className="size-4 shrink-0" /> : <Globe className="size-4 shrink-0" />}
+                        <span className="truncate">{repo.name}</span>
+                      </div>
+                      <div className="text-muted-foreground mt-1 truncate text-xs">
+                        {repo.owner || 'local'}/{repo.name}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      {repo.owner || 'local'}/{repo.name}
-                    </div>
+                    <Badge variant="green" className="shrink-0">
+                      <Star className="fill-current" /> Major
+                    </Badge>
                   </div>
-                  <span className="badge badge-green">⭐ Major</span>
-                </div>
 
-                <div className="project-stats">
-                  <div className="stat-pill">
-                    <div className="stat-val" style={{ color: '#c084fc' }}>{s ? s.features.length : '—'}</div>
-                    <div className="stat-label">Features</div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <Stat value={count(s?.features)} label="Features" className="text-purple-500" />
+                    <Stat value={count(s?.bugs)} label="Bugs" className="text-destructive" />
+                    <Stat value={count(s?.prs)} label="PRs" className="text-[var(--energy-low)]" />
+                    <Stat value={count(s?.general)} label="Issues" className="text-muted-foreground" />
                   </div>
-                  <div className="stat-pill">
-                    <div className="stat-val" style={{ color: 'var(--error)' }}>{s ? s.bugs.length : '—'}</div>
-                    <div className="stat-label">Bugs</div>
-                  </div>
-                  <div className="stat-pill">
-                    <div className="stat-val" style={{ color: 'var(--energy-low)' }}>{s ? s.prs.length : '—'}</div>
-                    <div className="stat-label">PRs</div>
-                  </div>
-                  <div className="stat-pill">
-                    <div className="stat-val" style={{ color: 'var(--text-muted)' }}>{s ? s.general.length : '—'}</div>
-                    <div className="stat-label">Issues</div>
-                  </div>
-                </div>
 
-                <div className="open-hint">Click to open project workspace →</div>
-              </div>
+                  <div className="text-muted-foreground group-hover:text-primary flex items-center gap-1 text-xs transition-colors">
+                    Open project workspace <ArrowRight className="size-3" />
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }
