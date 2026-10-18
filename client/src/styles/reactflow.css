@@ -1,0 +1,47 @@
+/* React Flow overrides for the architecture diagram */
+.react-flow__controls {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid var(--border) !important;
+}
+.react-flow__controls-button {
+  background-color: #ffffff !important;
+  fill: #64748b !important;
+  border-bottom: 1px solid var(--border) !important;
+  transition: all 0.2s ease !important;
+}
+.react-flow__controls-button:hover {
+  background-color: #f8fafc !important;
+  fill: var(--primary) !important;
+}
+.react-flow__minimap {
+  background-color: #ffffff !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06) !important;
+}
+.react-flow__minimap-mask {
+  fill: rgba(241, 245, 249, 0.8) !important;
+}
+.react-flow__minimap-node {
+  fill: #cbd5e1 !important;
+}
+.react-flow__handle {
+  width: 12px !important;
+  height: 12px !important;
+  background-color: var(--primary) !important;
+  border: 2px solid #ffffff !important;
+  border-radius: 50% !important;
+  z-index: 10 !important;
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+}
+.react-flow__handle:hover {
+  transform: scale(1.5) !important;
+  background-color: #1d4ed8 !important;
+  cursor: crosshair !important;
+}
+.react-flow__edge-path {
+  stroke-width: 2.5px !important;
+}

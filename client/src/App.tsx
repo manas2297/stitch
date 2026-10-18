@@ -127,7 +127,7 @@ export default function App() {
                 <Menu />
               </Button>
               <div className="flex items-center gap-2.5">
-                <div className="from-primary to-accent size-3 rounded-full bg-gradient-to-br shadow-[0_0_12px_rgba(37,99,235,0.45)]" />
+                <div className="from-primary to-[var(--brand-accent)] size-3 rounded-full bg-gradient-to-br shadow-[0_0_12px_rgba(37,99,235,0.45)]" />
                 <h1 className="text-xl font-bold tracking-tight">Stitch</h1>
               </div>
             </div>

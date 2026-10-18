@@ -1,52 +1,46 @@
 /*
  * Entry stylesheet: Tailwind v4 + shadcn/ui theme tokens.
- *
-  * Preflight (Tailwind's reset) sits in `base`, below the legacy CSS, so
- * shadcn components get their expected reset while legacy classes keep winning
- * where they still apply. The legacy CSS is imported into a lower-priority
- * layer so Tailwind utilities (p-4, gap-2, ...) always win over its `* { padding: 0 }`
- * style rules. Migrate screens to utilities/components incrementally, then
- * delete the matching rules from index.css.
+ * Components are styled with utilities; this file only holds design tokens,
+ * the page background, and third-party overrides (markdown preview, React Flow).
  */
-@layer theme, base, legacy, components, utilities;
-
-@import 'tailwindcss/theme.css' layer(theme);
-@import 'tailwindcss/preflight.css' layer(base);
-@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tailwindcss';
 @import 'tw-animate-css';
-@import './index.css' layer(legacy);
-@import './markdown.css' layer(components);
-
-@layer base {
-  *,
-  ::before,
-  ::after {
-    border-color: var(--border);
-  }
-}
+@import './markdown.css';
+@import './reactflow.css';
 
 @custom-variant dark (&:is(.dark *));
 
-/* shadcn tokens mapped onto the existing palette (see :root in index.css) */
 :root {
   --radius: 0.75rem;
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --background: var(--bg-color);
-  --foreground: var(--text-color);
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: var(--text-color);
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: var(--text-color);
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
-  --secondary-foreground: var(--text-color);
+  --secondary-foreground: #0f172a;
   --muted: #f1f5f9;
-  --muted-foreground: var(--text-muted);
-  --accent-foreground: #ffffff;
-  --destructive: var(--error);
+  --muted-foreground: #64748b;
+  /* shadcn "accent" is the subtle hover surface; the brand cyan is --brand-accent */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --brand-accent: #0284c7;
+  --destructive: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
   --border: rgba(226, 232, 240, 0.9);
   --input: rgba(226, 232, 240, 0.9);
-  --ring: var(--primary);
+  --ring: #2563eb;
+
+  /* Energy mode colors */
+  --energy-low: #0284c7;
+  --energy-medium: #d97706;
+  --energy-high: #e11d48;
 }
 
 @theme inline {
@@ -75,4 +69,21 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  body {
+    @apply bg-background text-foreground min-h-screen overflow-x-hidden font-sans;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.04) 0%, transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
 }

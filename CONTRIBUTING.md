@@ -100,4 +100,4 @@ The UI uses [shadcn/ui](https://ui.shadcn.com/) on Tailwind CSS v4. Components l
 cd client && npx shadcn@latest add <component>
 ```
 
-Use Tailwind utilities and the shared components for new UI. The legacy global stylesheet (`client/src/styles/index.css`) is loaded in a lower-priority layer, so utilities always override it; when you migrate a screen, delete the CSS rules it no longer uses. Note the `Badge.tsx`/`badge.tsx` casing clash on macOS: keep PascalCase file names for components.
+Style with Tailwind utilities and the shared components (`components/ui`, `components/layout`) — there is no global component CSS. Theme tokens live in `client/src/styles/tailwind.css`; the only other stylesheets are `markdown.css` (rendered markdown) and `reactflow.css` (diagram overrides). The layout is mobile-first: build for narrow screens, then add `sm:`/`md:`/`lg:` variants. Note the `Badge.tsx`/`badge.tsx` casing clash on macOS: keep PascalCase file names for components.

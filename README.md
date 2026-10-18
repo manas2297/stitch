@@ -83,7 +83,9 @@ stitch/
       components/            ← Tab panels & UI elements
         focus/               ← PomodoroTimer, FocusChecklist, FocusScratchpad,
                                 ArchitectureDiagram (React Flow)
-        ui/                  ← shadcn/ui components (Badge, Card, Sonner) + EmptyState, StatCard
+        ui/                  ← shadcn/ui primitives + Badge, EmptyState, StatCard
+        layout/              ← PageHeader, NavList, EnergyPanel, ConfirmDialog, ...
+      styles/tailwind.css    ← Tailwind v4 + theme tokens
   config.json                ← Local repo database (gitignored)
 ```
 
