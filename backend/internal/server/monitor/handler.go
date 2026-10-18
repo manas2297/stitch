@@ -1,187 +1,86 @@
 package monitor
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"stitch/internal/server/helpers"
 )
 
-// allowedProviders is the strict allowlist of AI tool provider names accepted by the monitor endpoints.
-var allowedProviders = map[string]bool{
-	"gemini":    true,
-	"claude":    true,
-	"openai":    true,
-	"anthropic": true,
-	"cursor":    true,
+func profileFromPath(w http.ResponseWriter, r *http.Request) (providerProfile, bool) {
+	p, ok := profiles[r.PathValue("provider")]
+	if !ok {
+		helpers.WriteJSONError(w, "Unknown provider", http.StatusBadRequest)
+	}
+	return p, ok
 }
 
-// HandleGetProviderDisk scans ~/.<provider> directory and returns disk usage breakdown.
-func HandleGetProviderDisk(w http.ResponseWriter, r *http.Request) {
-	provider := r.PathValue("provider")
-	if provider == "" {
-		helpers.WriteJSONError(w, "Provider is required", http.StatusBadRequest)
+// HandleGetProviders lists supported providers and whether their ~/.<provider> directory exists.
+func HandleGetProviders(w http.ResponseWriter, r *http.Request) {
+	type item struct {
+		ID     string `json:"id"`
+		Label  string `json:"label"`
+		Exists bool   `json:"exists"`
+	}
+	out := []item{}
+	for _, id := range providerOrder {
+		root, err := providerRoot(id)
+		if err != nil {
+			helpers.WriteJSONError(w, "Cannot resolve home dir", http.StatusInternalServerError)
+			return
+		}
+		fi, err := os.Stat(root)
+		out = append(out, item{ID: id, Label: profiles[id].Label, Exists: err == nil && fi.IsDir()})
+	}
+	helpers.WriteJSONResponse(w, out)
+}
+
+// HandleGetProviderAnalysis scans ~/.<provider> (metadata only) and returns storage, activity,
+// session analysis, insights and cleanup estimates.
+func HandleGetProviderAnalysis(w http.ResponseWriter, r *http.Request) {
+	p, ok := profileFromPath(w, r)
+	if !ok {
 		return
 	}
-	if !allowedProviders[provider] {
-		helpers.WriteJSONError(w, "Unknown provider", http.StatusBadRequest)
-		return
-	}
-	homedir, err := os.UserHomeDir()
+	res, err := scan(p)
 	if err != nil {
 		helpers.WriteJSONError(w, "Cannot resolve home dir", http.StatusInternalServerError)
 		return
 	}
-	providerDir := filepath.Join(homedir, "."+provider)
-
-	type SubDir struct {
-		Name string `json:"name"`
-		Size int64  `json:"size"`
-	}
-	type FileType struct {
-		Extension string `json:"extension"`
-		Count     int    `json:"count"`
-		Size      int64  `json:"size"`
-	}
-	type Conversation struct {
-		Name     string `json:"name"`
-		Size     int64  `json:"size"`
-		Modified string `json:"modified"`
-	}
-
-	// Total size
-	totalSize := int64(0)
-	filepath.Walk(providerDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
-			totalSize += info.Size()
-		}
-		return nil
-	})
-
-	// Subdirectories
-	subdirs := []SubDir{}
-	if entries, err := os.ReadDir(providerDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				subPath := filepath.Join(providerDir, e.Name())
-				dirSize := int64(0)
-				filepath.Walk(subPath, func(p string, fi os.FileInfo, err error) error {
-					if err == nil && !fi.IsDir() {
-						dirSize += fi.Size()
-					}
-					return nil
-				})
-				subdirs = append(subdirs, SubDir{Name: e.Name(), Size: dirSize})
-			}
-		}
-	}
-
-	// File type breakdown
-	mediaExts := []string{"webp", "png", "jpg", "jpeg", "webm", "mp4", "jsonl", "md", "json", "log"}
-	fileTypes := []FileType{}
-	for _, ext := range mediaExts {
-		count := 0
-		size := int64(0)
-		filepath.Walk(providerDir, func(path string, info os.FileInfo, err error) error {
-			if err == nil && !info.IsDir() && strings.ToLower(filepath.Ext(path)) == "."+ext {
-				count++
-				size += info.Size()
-			}
-			return nil
-		})
-		fileTypes = append(fileTypes, FileType{Extension: ext, Count: count, Size: size})
-	}
-
-	// Top conversations from brain dir
-	conversations := []Conversation{}
-	brainDir := filepath.Join(providerDir, "antigravity-ide", "brain")
-	if entries, err := os.ReadDir(brainDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				convPath := filepath.Join(brainDir, e.Name())
-				convSize := int64(0)
-				var lastMod time.Time
-				filepath.Walk(convPath, func(p string, fi os.FileInfo, err error) error {
-					if err == nil && !fi.IsDir() {
-						convSize += fi.Size()
-						if fi.ModTime().After(lastMod) {
-							lastMod = fi.ModTime()
-						}
-					}
-					return nil
-				})
-				modStr := ""
-				if !lastMod.IsZero() {
-					modStr = lastMod.Format("2006-01-02 15:04:05")
-				}
-				conversations = append(conversations, Conversation{Name: e.Name(), Size: convSize, Modified: modStr})
-			}
-		}
-	}
-
-	// Sort conversations by size desc, keep top 10
-	for i := 0; i < len(conversations); i++ {
-		for j := i + 1; j < len(conversations); j++ {
-			if conversations[j].Size > conversations[i].Size {
-				conversations[i], conversations[j] = conversations[j], conversations[i]
-			}
-		}
-	}
-	if len(conversations) > 10 {
-		conversations = conversations[:10]
-	}
-
-	helpers.WriteJSONResponse(w, map[string]interface{}{
-		"lastUpdated":      time.Now().Format("2006-01-02 15:04:05"),
-		"totalSize":        totalSize,
-		"subdirectories":   subdirs,
-		"fileTypes":        fileTypes,
-		"topConversations": conversations,
-	})
+	helpers.WriteJSONResponse(w, buildReport(res, time.Now()))
 }
 
-// HandleDeleteProviderMedia deletes all browser recording/screenshot media files from ~/.<provider>.
-func HandleDeleteProviderMedia(w http.ResponseWriter, r *http.Request) {
-	provider := r.PathValue("provider")
-	if provider == "" {
-		helpers.WriteJSONError(w, "Provider is required", http.StatusBadRequest)
+// HandlePostProviderCleanup previews (dryRun) or runs a cleanup action against a fresh scan.
+// Session ids are only honoured if they exist in that scan, so clients cannot pass arbitrary paths.
+func HandlePostProviderCleanup(w http.ResponseWriter, r *http.Request) {
+	p, ok := profileFromPath(w, r)
+	if !ok {
 		return
 	}
-	if !allowedProviders[provider] {
-		helpers.WriteJSONError(w, "Unknown provider", http.StatusBadRequest)
+	var req cleanupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		helpers.WriteJSONError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	homedir, err := os.UserHomeDir()
+	res, err := scan(p)
 	if err != nil {
 		helpers.WriteJSONError(w, "Cannot resolve home dir", http.StatusInternalServerError)
 		return
 	}
-	providerDir := filepath.Join(homedir, "."+provider)
-	mediaExts := map[string]bool{
-		".webp": true, ".png": true, ".jpg": true,
-		".jpeg": true, ".webm": true, ".mp4": true,
+	if !res.Exists {
+		helpers.WriteJSONError(w, "Provider directory does not exist", http.StatusNotFound)
+		return
 	}
-
-	deleted := 0
-	freedBytes := int64(0)
-	filepath.Walk(providerDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
-			if mediaExts[strings.ToLower(filepath.Ext(path))] {
-				freedBytes += info.Size()
-				if removeErr := os.Remove(path); removeErr == nil {
-					deleted++
-				}
-			}
-		}
-		return nil
-	})
-
-	helpers.WriteJSONResponse(w, map[string]interface{}{
-		"success":    true,
-		"deleted":    deleted,
-		"freedBytes": freedBytes,
-	})
+	plan, err := buildPlan(res, req, time.Now())
+	if err != nil {
+		helpers.WriteJSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.DryRun {
+		helpers.WriteJSONResponse(w, cleanupResult{cleanupPlan: *plan, DryRun: true})
+		return
+	}
+	helpers.WriteJSONResponse(w, execute(res, plan))
 }
