@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"stitch/internal/server/build"
 	"stitch/internal/server/contributions"
@@ -86,26 +87,29 @@ func Routes() http.Handler {
 		origin := r.Header.Get("Origin")
 		// Allow only loopback origins (dev Vite client and desktop WebView)
 		allowedOrigins := map[string]bool{
-			"http://localhost:5173":   true,
+			"http://localhost:5173":  true,
 			"http://127.0.0.1:5173":  true,
-			"http://localhost:4000":   true,
+			"http://localhost:4000":  true,
 			"http://127.0.0.1:4000":  true,
+			"http://localhost:34115": true, // wails dev webview
+			"http://127.0.0.1:34115": true,
+			"wails://wails":          true, // wails production webview (macOS/Linux)
+			"http://wails.localhost": true, // wails production webview (Windows)
 		}
-		if allowedOrigins[origin] {
+		if allowedOrigins[origin] || strings.HasPrefix(origin, "wails://") {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS, PUT")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		mux.ServeHTTP(w, r)
 	})
 
 	return globalCORS
 }
-
