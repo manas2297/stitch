@@ -65,9 +65,10 @@ func Routes() http.Handler {
 	mux.HandleFunc("POST /api/profile/git", profile.HandlePostProfileGit)
 	mux.HandleFunc("POST /api/config/tab-energies", repos.HandlePostTabEnergies)
 
-	// 8. Provider Disk Monitor
-	mux.HandleFunc("GET /api/provider/{provider}/disk", monitor.HandleGetProviderDisk)
-	mux.HandleFunc("DELETE /api/provider/{provider}/media", monitor.HandleDeleteProviderMedia)
+	// 8. AI Monitor (provider usage analysis & cleanup)
+	mux.HandleFunc("GET /api/providers", monitor.HandleGetProviders)
+	mux.HandleFunc("GET /api/provider/{provider}/analysis", monitor.HandleGetProviderAnalysis)
+	mux.HandleFunc("POST /api/provider/{provider}/cleanup", monitor.HandlePostProviderCleanup)
 
 	// Static client file hosting (Vite build target)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
