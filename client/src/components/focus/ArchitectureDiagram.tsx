@@ -15,6 +15,10 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import FocusCard from './FocusCard';
 import {
   Network,
   Trash2,
@@ -28,6 +32,14 @@ import {
   Pill,
   Lightbulb,
 } from 'lucide-react';
+
+const SHAPES = [
+  { type: 'square', label: 'Square', icon: Square },
+  { type: 'circle', label: 'Circle', icon: Circle },
+  { type: 'rhombus', label: 'Rhombus', icon: Diamond },
+  { type: 'database', label: 'Database', icon: Database },
+  { type: 'capsule', label: 'Capsule', icon: Pill },
+];
 
 interface ArchitectureDiagramProps {
   focusProject: string;
@@ -464,126 +476,48 @@ export default function ArchitectureDiagram({ focusProject }: ArchitectureDiagra
     setSelectedElements({ nodes: selNodes, edges: selEdges });
   }, []);
 
+  const selectedCount = selectedElements.nodes.length + selectedElements.edges.length;
+
   return (
-    <div className="focus-card" style={{ padding: '1.5rem' }}>
-      <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <Network size={18} style={{ color: 'var(--primary)' }} />
-          <span>System Architecture Diagram</span>
-        </span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(selectedElements.nodes.length > 0 || selectedElements.edges.length > 0) && (
-            <button
-              className="btn btn-secondary"
-              style={{
-                padding: '4px 10px',
-                fontSize: '0.78rem',
-                color: '#dc2626',
-                borderColor: '#fca5a5',
-                background: '#fef2f2',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
+    <FocusCard
+      icon={Network}
+      title="System Architecture Diagram"
+      action={
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {selectedCount > 0 && (
+            <Button
+              variant="outline"
+              size="xs"
+              className="border-red-300 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
               onClick={handleDeleteSelected}
             >
-              <Trash2 size={13} />
-              <span>Delete Selected ({selectedElements.nodes.length + selectedElements.edges.length})</span>
-            </button>
+              <Trash2 /> Delete Selected ({selectedCount})
+            </Button>
           )}
-          <button
-            className="btn btn-secondary"
-            style={{
-              padding: '4px 10px',
-              fontSize: '0.78rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-            }}
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-            <span>{isExpanded ? 'Compact View' : 'Expand Canvas'}</span>
-          </button>
-          <button
-            className="btn btn-secondary"
-            style={{
-              padding: '4px 10px',
-              fontSize: '0.78rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-            }}
-            onClick={handleResetDiagram}
-            title="Reset Diagram"
-          >
-            <RotateCcw size={13} />
-            <span>Reset</span>
-          </button>
+          <Button variant="secondary" size="xs" onClick={() => setIsExpanded(!isExpanded)}>
+            {isExpanded ? <Minimize2 /> : <Maximize2 />}
+            <span className="hidden sm:inline">{isExpanded ? 'Compact View' : 'Expand Canvas'}</span>
+          </Button>
+          <Button variant="secondary" size="xs" onClick={handleResetDiagram} title="Reset Diagram">
+            <RotateCcw /> Reset
+          </Button>
         </div>
-      </h3>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: 2 }}>
-          Add Shape:
-        </span>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          onClick={() => handleAddNode('square')}
-        >
-          <Square size={13} />
-          <span>Square</span>
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          onClick={() => handleAddNode('circle')}
-        >
-          <Circle size={13} />
-          <span>Circle</span>
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          onClick={() => handleAddNode('rhombus')}
-        >
-          <Diamond size={13} />
-          <span>Rhombus</span>
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          onClick={() => handleAddNode('database')}
-        >
-          <Database size={13} />
-          <span>Database</span>
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          onClick={() => handleAddNode('capsule')}
-        >
-          <Pill size={13} />
-          <span>Capsule</span>
-        </button>
+      }
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground mr-0.5 text-xs font-semibold">Add Shape:</span>
+        {SHAPES.map(({ type, label, icon: Icon }) => (
+          <Button key={type} type="button" variant="secondary" size="xs" onClick={() => handleAddNode(type)}>
+            <Icon /> {label}
+          </Button>
+        ))}
       </div>
 
       <div
-        style={{
-          width: '100%',
-          height: isExpanded ? '520px' : '280px',
-          background: '#f8fafc',
-          border: '1px solid var(--border-color)',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          transition: 'height 0.3s ease',
-        }}
+        className={cn(
+          'bg-muted/30 w-full overflow-hidden rounded-xl border transition-[height] duration-300',
+          isExpanded ? 'h-[520px]' : 'h-[280px]',
+        )}
       >
         <ReactFlow
           nodes={nodesWithHandlers}
@@ -597,28 +531,17 @@ export default function ArchitectureDiagram({ focusProject }: ArchitectureDiagra
         >
           <Background color="#cbd5e1" gap={16} size={1} />
           <Controls />
-          {isExpanded && <MiniMap style={{ background: '#ffffff', border: '1px solid var(--border-color)' }} zoomable pannable />}
+          {isExpanded && <MiniMap style={{ background: '#ffffff', border: '1px solid var(--border)' }} zoomable pannable />}
         </ReactFlow>
       </div>
 
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: '0.75rem',
-          color: 'var(--text-muted)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 6,
-        }}
-      >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <Lightbulb size={13} style={{ color: '#f59e0b' }} />
-          <span>Click shape to add • Double-click node to edit title • Select & press Backspace to delete</span>
+      <div className="text-muted-foreground mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-xs">
+        <span className="inline-flex items-center gap-1.5">
+          <Lightbulb className="size-3.5 shrink-0 text-amber-500" />
+          <span>Click shape to add • Double-click node to edit title • Select &amp; press Backspace to delete</span>
         </span>
-        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Auto-saved per project</span>
+        <span className="text-primary font-semibold">Auto-saved per project</span>
       </div>
-    </div>
+    </FocusCard>
   );
 }

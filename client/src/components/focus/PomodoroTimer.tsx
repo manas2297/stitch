@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Timer, Play, Pause, RotateCcw, Trophy } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Pause, Play, RotateCcw, Timer, Trophy } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import FocusCard from './FocusCard';
+
+type TimerMode = 'work' | 'shortBreak' | 'longBreak';
 
 interface PomodoroTimerProps {
   onSessionComplete?: () => void;
 }
 
+const DURATIONS: Record<TimerMode, number> = { work: 25, shortBreak: 5, longBreak: 15 };
+
 export default function PomodoroTimer({ onSessionComplete }: PomodoroTimerProps) {
-  const [timerMode, setTimerMode] = useState<'work' | 'shortBreak' | 'longBreak'>('work');
+  const [timerMode, setTimerMode] = useState<TimerMode>('work');
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [durations] = useState({ work: 25, shortBreak: 5, longBreak: 15 });
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [timeLeft, setTimeLeft] = useState(DURATIONS.work * 60);
   const [completedSessions, setCompletedSessions] = useState(() => {
     const saved = localStorage.getItem('stitch_focus_completed_sessions');
     return saved ? parseInt(saved, 10) : 0;
@@ -31,49 +38,43 @@ export default function PomodoroTimer({ onSessionComplete }: PomodoroTimerProps)
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.5);
-    } catch (e) {
+    } catch {
       // Audio play blocked
     }
   };
 
   useEffect(() => {
-    let interval: any = null;
-    if (isTimerRunning) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsTimerRunning(false);
-            playChime();
-            if (timerMode === 'work') {
-              setCompletedSessions((c) => {
-                const next = c + 1;
-                localStorage.setItem('stitch_focus_completed_sessions', next.toString());
-                return next;
-              });
-              if (onSessionComplete) onSessionComplete();
-            }
-            return 0;
+    if (!isTimerRunning) return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setIsTimerRunning(false);
+          playChime();
+          if (timerMode === 'work') {
+            setCompletedSessions((c) => {
+              const next = c + 1;
+              localStorage.setItem('stitch_focus_completed_sessions', next.toString());
+              return next;
+            });
+            onSessionComplete?.();
           }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(interval);
   }, [isTimerRunning, timerMode, onSessionComplete]);
 
-  const switchTimerMode = (mode: 'work' | 'shortBreak' | 'longBreak') => {
+  const switchTimerMode = (mode: TimerMode) => {
     setIsTimerRunning(false);
     setTimerMode(mode);
-    setTimeLeft(durations[mode] * 60);
+    setTimeLeft(DURATIONS[mode] * 60);
   };
-
-  const toggleTimer = () => setIsTimerRunning(!isTimerRunning);
 
   const resetTimer = () => {
     setIsTimerRunning(false);
-    setTimeLeft(durations[timerMode] * 60);
+    setTimeLeft(DURATIONS[timerMode] * 60);
   };
 
   const formatTime = (seconds: number) => {
@@ -83,73 +84,45 @@ export default function PomodoroTimer({ onSessionComplete }: PomodoroTimerProps)
   };
 
   return (
-    <div className="focus-card pomodoro-card" style={{ padding: '1.5rem' }}>
-      <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Timer size={18} style={{ color: 'var(--primary)' }} />
-        <span>Focus Timer</span>
-      </h3>
-      <div className="pomodoro-modes">
-        <button
-          type="button"
-          className={`pomodoro-mode-btn ${timerMode === 'work' ? 'active' : ''}`}
-          onClick={() => switchTimerMode('work')}
-        >
-          Focus (25m)
-        </button>
-        <button
-          type="button"
-          className={`pomodoro-mode-btn ${timerMode === 'shortBreak' ? 'active' : ''}`}
-          onClick={() => switchTimerMode('shortBreak')}
-        >
-          Short Break (5m)
-        </button>
-        <button
-          type="button"
-          className={`pomodoro-mode-btn ${timerMode === 'longBreak' ? 'active' : ''}`}
-          onClick={() => switchTimerMode('longBreak')}
-        >
-          Long Break (15m)
-        </button>
+    <FocusCard icon={Timer} title="Focus Timer">
+      <div className="flex flex-col gap-4">
+        <Tabs value={timerMode} onValueChange={(v) => switchTimerMode(v as TimerMode)}>
+          <TabsList className="grid h-auto w-full grid-cols-3">
+            <TabsTrigger value="work" className="px-1 text-xs">
+              Focus (25m)
+            </TabsTrigger>
+            <TabsTrigger value="shortBreak" className="px-1 text-xs">
+              Short (5m)
+            </TabsTrigger>
+            <TabsTrigger value="longBreak" className="px-1 text-xs">
+              Long (15m)
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="bg-muted/40 rounded-xl border py-6 text-center">
+          <div className="font-mono text-5xl font-bold tracking-tight tabular-nums" role="timer" aria-live="off">
+            {formatTime(timeLeft)}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button className="flex-1" onClick={() => setIsTimerRunning(!isTimerRunning)}>
+            {isTimerRunning ? <Pause /> : <Play />} {isTimerRunning ? 'Pause' : 'Start'}
+          </Button>
+          <Button variant="secondary" onClick={resetTimer}>
+            <RotateCcw /> Reset
+          </Button>
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span className="inline-flex items-center gap-1.5">
+            <Trophy className="size-3.5 text-amber-600" /> Sessions Completed:{' '}
+            <strong className="text-primary">{completedSessions}</strong>
+          </span>
+          <span className="text-muted-foreground text-xs">{timerMode === 'work' ? 'Stay Focused' : 'Take a Break'}</span>
+        </div>
       </div>
-      <div className="pomodoro-display">
-        <div className="pomodoro-time">{formatTime(timeLeft)}</div>
-      </div>
-      <div className="pomodoro-controls">
-        <button
-          type="button"
-          className="pomodoro-btn-main"
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-          onClick={toggleTimer}
-        >
-          {isTimerRunning ? <Pause size={15} /> : <Play size={15} />}
-          <span>{isTimerRunning ? 'Pause' : 'Start'}</span>
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{
-            padding: '8px 14px',
-            fontSize: '0.85rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-          }}
-          onClick={resetTimer}
-        >
-          <RotateCcw size={14} />
-          <span>Reset</span>
-        </button>
-      </div>
-      <div className="pomodoro-stats">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <Trophy size={14} style={{ color: '#d97706' }} />
-          <span>Sessions Completed:</span>
-          <strong style={{ color: 'var(--primary)' }}>{completedSessions}</strong>
-        </span>
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          {timerMode === 'work' ? 'Stay Focused' : 'Take a Break'}
-        </span>
-      </div>
-    </div>
+    </FocusCard>
   );
 }
