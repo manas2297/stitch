@@ -1,0 +1,65 @@
+/*
+ * Entry stylesheet: Tailwind v4 + shadcn/ui theme tokens.
+ *
+ * Preflight is intentionally skipped; the legacy global stylesheet already
+ * provides the reset. The legacy CSS is imported into a lower-priority layer
+ * so Tailwind utilities (p-4, gap-2, ...) always win over its `* { padding: 0 }`
+ * style rules. Migrate screens to utilities/components incrementally, then
+ * delete the matching rules from index.css.
+ */
+@layer theme, legacy, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+@import './index.css' layer(legacy);
+
+@custom-variant dark (&:is(.dark *));
+
+/* shadcn tokens mapped onto the existing palette (see :root in index.css) */
+:root {
+  --radius: 0.75rem;
+  --background: var(--bg-color);
+  --foreground: var(--text-color);
+  --card: #ffffff;
+  --card-foreground: var(--text-color);
+  --popover: #ffffff;
+  --popover-foreground: var(--text-color);
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: var(--text-color);
+  --muted: #f1f5f9;
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: #ffffff;
+  --destructive: var(--error);
+  --border: rgba(226, 232, 240, 0.9);
+  --input: rgba(226, 232, 240, 0.9);
+  --ring: var(--primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
