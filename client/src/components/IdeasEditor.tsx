@@ -1,9 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../store/useAppStore';
-import { useToast } from './Toast';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, FileText, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { compileMarkdown } from '../helper';
 import { confirmDialog } from '../helper/confirm';
-
+import { apiFetch } from '../store/useAppStore';
+import LoadingState from './layout/LoadingState';
+import { useToast } from './Toast';
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -13,16 +21,28 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+type ViewMode = 'edit' | 'preview' | 'split';
+
+const FORMATS: { label: React.ReactNode; title: string; before: string; after?: string }[] = [
+  { label: <strong>B</strong>, title: 'Bold', before: '**', after: '**' },
+  { label: <em>I</em>, title: 'Italic', before: '*', after: '*' },
+  { label: 'H', title: 'Heading', before: '### ' },
+  { label: 'Code', title: 'Inline Code', before: '`', after: '`' },
+  { label: 'Block', title: 'Code Block', before: '```\n', after: '\n```' },
+  { label: '• List', title: 'Bullet List', before: '- ' },
+  { label: '☑ Todo', title: 'Checkbox List', before: '- [ ] ' },
+];
+
 export default function IdeasEditor({ owner, name }) {
   const [files, setFiles] = useState([]);
-  const [activeFile, setActiveFile] = useState(null);
+  const [activeFile, setActiveFile] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewMode, setViewMode] = useState('edit'); // 'edit' or 'preview' or 'split'
-  const [fileMode, setFileMode] = useState(''); // 'view' or 'edit'
+  const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [fileMode, setFileMode] = useState<'view' | 'edit' | ''>('');
   const [newFilename, setNewFilename] = useState('');
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const toast = useToast();
 
   const loadFilesList = async () => {
@@ -43,24 +63,9 @@ export default function IdeasEditor({ owner, name }) {
     loadFilesList();
   }, [owner, name]);
 
-  const setFileViewMode = async (mode, filename) => {
+  const openFile = async (filename: string, mode: 'view' | 'edit') => {
     setLoading(true);
     setFileMode(mode);
-    try {
-      const res = await apiFetch(`/api/ideas/file?owner=${owner}&name=${name}&filename=${encodeURIComponent(filename)}`);
-      if (!res.ok) throw new Error(`Failed to load file ${filename}`);
-      const data = await res.json();
-      setContent(data.content || '');
-      setActiveFile(filename);
-    } catch (err) {
-      toast(err.message, 'error')
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const handleOpenFile = async (filename) => {
-    setLoading(true);
     try {
       const res = await apiFetch(`/api/ideas/file?owner=${owner}&name=${name}&filename=${encodeURIComponent(filename)}`);
       if (!res.ok) throw new Error(`Failed to load file ${filename}`);
@@ -78,22 +83,25 @@ export default function IdeasEditor({ owner, name }) {
     e.preventDefault();
     let cleaned = newFilename.trim();
     if (!cleaned) return;
-    if (!cleaned.endsWith('.md') && !cleaned.endsWith('.txt')) {
-      cleaned += '.md';
-    }
+    if (!cleaned.endsWith('.md') && !cleaned.endsWith('.txt')) cleaned += '.md';
 
     setSaving(true);
     try {
       const res = await apiFetch('/api/ideas/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner, name, filename: cleaned, content: '# ' + cleaned.replace(/\.[^/.]+$/, '') + '\n\nWrite your ideas here...' }),
+        body: JSON.stringify({
+          owner,
+          name,
+          filename: cleaned,
+          content: '# ' + cleaned.replace(/\.[^/.]+$/, '') + '\n\nWrite your ideas here...',
+        }),
       });
       if (!res.ok) throw new Error('Failed to create file');
       toast(`File ${cleaned} created successfully.`, 'success');
       setNewFilename('');
       await loadFilesList();
-      handleOpenFile(cleaned);
+      openFile(cleaned, 'edit');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -119,12 +127,10 @@ export default function IdeasEditor({ owner, name }) {
     }
   };
 
-  const handleDeleteFile = async (filename, e) => {
+  const handleDeleteFile = async (filename: string, e) => {
     e.stopPropagation();
     const confirmed = await confirmDialog('Delete File', `Are you sure you want to delete ${filename}?`);
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
     try {
       const res = await apiFetch(`/api/ideas/file?owner=${owner}&name=${name}&filename=${encodeURIComponent(filename)}`, {
         method: 'DELETE',
@@ -141,27 +147,23 @@ export default function IdeasEditor({ owner, name }) {
     }
   };
 
-  const insertFormat = (syntaxBefore, syntaxAfter = '') => {
+  const insertFormat = (before: string, after = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
-    const selectedText = text.substring(start, end);
-    const replacement = syntaxBefore + selectedText + syntaxAfter;
-
-    setContent(text.substring(0, start) + replacement + text.substring(end));
-
+    const selected = text.substring(start, end);
+    setContent(text.substring(0, start) + before + selected + after + text.substring(end));
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + syntaxBefore.length, start + syntaxBefore.length + selectedText.length);
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
     }, 0);
   };
 
-  // Keyboard shortcut Ctrl+S / Cmd+S to save
+  // Cmd/Ctrl+S saves the open file
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         handleSave();
@@ -171,181 +173,177 @@ export default function IdeasEditor({ owner, name }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [content, activeFile, owner, name]);
 
-  if (loading && !activeFile) {
+  if (loading && !activeFile) return <LoadingState label="Loading ideas files..." />;
+
+  const preview = (
+    <div className="bg-card min-h-64 overflow-auto rounded-xl border p-4">
+      {content ? (
+        <div className="markdown-preview" dangerouslySetInnerHTML={{ __html: compileMarkdown(content) }} />
+      ) : (
+        <p className="text-muted-foreground mt-12 text-center text-sm">
+          Nothing to preview yet. Write some Markdown to see it rendered here.
+        </p>
+      )}
+    </div>
+  );
+
+  // --- Read-only view ---
+  if (activeFile && fileMode === 'view') {
     return (
-      <div className="ideas-loading">
-        <div className="spinner"></div>
-        <span>Loading ideas files...</span>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setActiveFile(null)}>
+            <ArrowLeft /> Back to List
+          </Button>
+          <Button size="sm" onClick={() => setFileMode('edit')}>
+            <Pencil /> Edit File
+          </Button>
+          <span className="text-muted-foreground text-sm font-semibold break-all sm:ml-2">Viewing: {activeFile}</span>
+        </div>
+        {preview}
       </div>
     );
   }
 
-  // --- rendering the preview mode
-
-  if (activeFile && fileMode == 'view') {
-    return (
-      <div>
-        <header className="view-header" style={{ display: 'flex', gap: '8px', marginBottom: '1rem', alignItems: 'center' }}>
-          <button onClick={() => setActiveFile(null)} className="btn btn-secondary back-btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-            ← Back to List
-          </button>
-          <button onClick={() => setFileMode('edit')} className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-            ✎ Edit File
-          </button>
-          <span style={{ marginLeft: '1rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-            Viewing: {activeFile}
-          </span>
-        </header>
-
-        <div className="workspace-panel preview-panel">
-          <div
-            className="markdown-preview"
-            dangerouslySetInnerHTML={{ __html: compileMarkdown(content) }}
-          />
-        </div>
-      </div>
-
-    )
-  }
-  // --- RENDERING LIST MODE ---
+  // --- File list ---
   if (!activeFile) {
     return (
-      <div className="ideas-list-mode">
-        <div className="list-mode-header">
-          <div className="header-title-box">
-            <h3>🧠 Project Ideas Workspace</h3>
-            <p>Save notes, specifications, or brainstorming ideas in text/markdown files inside your local project workspace.</p>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h3 className="text-lg font-bold">🧠 Project Ideas Workspace</h3>
+            <p className="text-muted-foreground mt-1 max-w-xl text-sm">
+              Save notes, specifications, or brainstorming ideas in text/markdown files inside your local project workspace.
+            </p>
           </div>
-
-          <form onSubmit={handleCreateFile} className="create-file-form">
-            <input
-              type="text"
-              className="roadmap-input"
-              style={{ fontSize: '0.85rem', padding: '6px 12px', minWidth: 200 }}
+          <form onSubmit={handleCreateFile} className="flex gap-2">
+            <Input
+              className="min-w-0 lg:w-56"
               placeholder="new_idea.md..."
               value={newFilename}
               onChange={(e) => setNewFilename(e.target.value)}
               required
+              aria-label="New file name"
             />
-            <button type="submit" disabled={saving} className="btn">
-              {saving ? 'Creating...' : '+ Create File'}
-            </button>
+            <Button type="submit" disabled={saving} className="shrink-0">
+              <Plus /> {saving ? 'Creating...' : 'Create File'}
+            </Button>
           </form>
         </div>
 
-        <div className="ideas-files-grid">
-          {files.length === 0 ? (
-            <div className="no-files-empty">
-              <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📝</div>
-              <div>No ideas files found in this workspace yet.</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>
-                Enter a filename above to create your first markdown document.
-              </p>
-            </div>
-          ) : (
-            files.map((f) => (
-              <div key={f.filename} className="idea-file-card" onClick={() => setFileViewMode('view', f.filename)}>
-                <div className="card-top">
-                  <span className="file-icon">📄</span>
-                  <span className="file-name">{f.filename}</span>
-                  <button className="delete-file-btn" onClick={(e) => handleDeleteFile(f.filename, e)} title="Delete File">
-                    ✕
-                  </button>
-                </div>
-                <div className="card-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.5rem', width: '100%' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Size: {formatBytes(f.size)}</span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Edited: {f.modified || '—'}</span>
+        {files.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No ideas files found in this workspace yet."
+            description="Enter a filename above to create your first markdown document."
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {files.map((f) => (
+              <Card
+                key={f.filename}
+                role="button"
+                tabIndex={0}
+                onClick={() => openFile(f.filename, 'view')}
+                onKeyDown={(e) => e.key === 'Enter' && openFile(f.filename, 'view')}
+                className="hover:border-primary/40 cursor-pointer gap-3 py-4 transition-colors"
+              >
+                <CardContent className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="text-muted-foreground size-4 shrink-0" />
+                    <span className="flex-1 truncate font-semibold">{f.filename}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDeleteFile(f.filename, e)}
+                      aria-label={`Delete ${f.filename}`}
+                    >
+                      <Trash2 />
+                    </Button>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button onClick={(e) => { e.stopPropagation(); setFileViewMode('view', f.filename); }} className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: '4px' }}>
-                      View
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setFileViewMode('edit', f.filename); }} className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: '4px' }}>
-                      Edit
-                    </button>
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="text-muted-foreground flex flex-col text-xs">
+                      <span>Size: {formatBytes(f.size)}</span>
+                      <span>Edited: {f.modified || '—'}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="xs" onClick={(e) => { e.stopPropagation(); openFile(f.filename, 'view'); }}>
+                        View
+                      </Button>
+                      <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); openFile(f.filename, 'edit'); }}>
+                        Edit
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
-  // --- RENDERING EDIT MODE ---
+  // --- Editor ---
   return (
-    <div className="ideas-editor-container">
-      {/* Editor Toolbar */}
-      <div className="ideas-toolbar">
-        <button onClick={() => { setActiveFile(null); loadFilesList(); }} className="tb-btn mode-btn back-to-list-btn">
-          ← Back to Files
-        </button>
+    <div className="flex flex-col gap-3">
+      <div className="bg-muted/40 flex flex-wrap items-center gap-2 rounded-xl border p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setActiveFile(null);
+            loadFilesList();
+          }}
+        >
+          <ArrowLeft /> Back to Files
+        </Button>
+        <span className="text-sm font-semibold break-all md:border-l md:pl-3">📄 {activeFile}</span>
 
-        <div className="toolbar-file-label" style={{ fontWeight: 600, fontSize: '0.9rem', color: 'white', marginRight: '1rem', borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem' }}>
-          📄 {activeFile}
+        <div className="flex flex-wrap gap-1 md:ml-2">
+          {FORMATS.map((f) => (
+            <Button key={f.title} variant="ghost" size="xs" title={f.title} onClick={() => insertFormat(f.before, f.after)}>
+              {f.label}
+            </Button>
+          ))}
         </div>
 
-        <div className="toolbar-group formatting">
-          <button onClick={() => insertFormat('**', '**')} title="Bold" className="tb-btn"><strong>B</strong></button>
-          <button onClick={() => insertFormat('*', '*')} title="Italic" className="tb-btn"><em>I</em></button>
-          <button onClick={() => insertFormat('### ')} title="Heading" className="tb-btn">H</button>
-          <button onClick={() => insertFormat('`', '`')} title="Inline Code" className="tb-btn">Code</button>
-          <button onClick={() => insertFormat('```\n', '\n```')} title="Code Block" className="tb-btn">Block</button>
-          <button onClick={() => insertFormat('- ')} title="Bullet List" className="tb-btn">• List</button>
-          <button onClick={() => insertFormat('- [ ] ')} title="Checkbox List" className="tb-btn">☑ Todo</button>
+        <div className="flex gap-1 md:ml-auto">
+          {(['edit', 'preview', 'split'] as ViewMode[]).map((m) => (
+            <Button
+              key={m}
+              size="xs"
+              variant={viewMode === m ? 'default' : 'ghost'}
+              className={cn('capitalize', m === 'split' && 'hidden md:inline-flex')}
+              onClick={() => setViewMode(m)}
+            >
+              {m}
+            </Button>
+          ))}
         </div>
 
-        <div className="toolbar-group view-modes">
-          <button onClick={() => setViewMode('edit')} className={`tb-btn mode-btn ${viewMode === 'edit' ? 'active' : ''}`}>Edit</button>
-          <button onClick={() => setViewMode('preview')} className={`tb-btn mode-btn ${viewMode === 'preview' ? 'active' : ''}`}>Preview</button>
-          <button onClick={() => setViewMode('split')} className={`tb-btn mode-btn ${viewMode === 'split' ? 'active' : ''} desktop-only`}>Split</button>
-        </div>
-
-        <div className="toolbar-group actions" style={{ marginLeft: 'auto' }}>
-          <button onClick={handleSave} disabled={saving} className="btn">
-            {saving ? 'Saving...' : 'Save (⌘S)'}
-          </button>
-        </div>
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Save /> {saving ? 'Saving...' : 'Save (⌘S)'}
+        </Button>
       </div>
 
-      {/* Editor Main Content Workspace */}
-      <div className={`ideas-workspace mode-${viewMode}`}>
-        {loading ? (
-          <div className="ideas-loading" style={{ width: '100%' }}>
-            <div className="spinner"></div>
-            <span>Opening file...</span>
-          </div>
-        ) : (
-          <>
-            {(viewMode === 'edit' || viewMode === 'split') && (
-              <div className="workspace-panel edit-panel">
-                <textarea
-                  ref={textareaRef}
-                  className="ideas-textarea"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Write your ideas, notes, or brainstorming specs here using Markdown..."
-                />
-              </div>
-            )}
-
-            {(viewMode === 'preview' || viewMode === 'split') && (
-              <div className="workspace-panel preview-panel">
-                {content ? (
-                  <div
-                    className="markdown-preview"
-                    dangerouslySetInnerHTML={{ __html: compileMarkdown(content) }}
-                  />
-                ) : (
-                  <div className="preview-empty">Nothing to preview yet. Write some Markdown to see it rendered here.</div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {loading ? (
+        <LoadingState label="Opening file..." />
+      ) : (
+        <div className={cn('grid gap-3', viewMode === 'split' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1')}>
+          {(viewMode === 'edit' || viewMode === 'split') && (
+            <Textarea
+              ref={textareaRef}
+              className="min-h-[50vh] resize-y font-mono text-sm"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write your ideas, notes, or brainstorming specs here using Markdown..."
+            />
+          )}
+          {(viewMode === 'preview' || viewMode === 'split') && preview}
+        </div>
+      )}
     </div>
   );
 }

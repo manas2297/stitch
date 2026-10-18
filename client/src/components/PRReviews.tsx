@@ -1,30 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { PartyPopper } from 'lucide-react';
+
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import useAppStore, { apiFetch } from '../store/useAppStore';
-
-function ageBadge(dateStr) {
-  const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
-  if (days < 2)  return { cls: 'age-fresh',  label: 'Today' };
-  if (days < 7)  return { cls: 'age-recent', label: `${Math.floor(days)}d ago` };
-  if (days < 30) return { cls: 'age-aging',  label: `${Math.floor(days)}d ago` };
-  return           { cls: 'age-stale',  label: `${Math.floor(days / 30)}mo ago` };
-}
-
-function SkeletonList() {
-  return (
-    <div className="skeleton-row">
-      {[1,2,3,4,5].map((i) => (
-        <div key={i} className="skeleton-item">
-          <div className="skeleton skeleton-avatar" />
-          <div className="skeleton-lines">
-            <div className="skeleton skeleton-line full" />
-            <div className="skeleton skeleton-line medium" />
-          </div>
-          <div className="skeleton skeleton-line short" style={{ width: 60, flexShrink: 0 }} />
-        </div>
-      ))}
-    </div>
-  );
-}
+import ActivityRow from './layout/ActivityRow';
+import FilterBar from './layout/FilterBar';
+import { ErrorMessage } from './layout/LoadingState';
+import ListSkeleton from './layout/ListSkeleton';
+import PageHeader from './layout/PageHeader';
+import RepoSelect from './layout/RepoSelect';
 
 export default function PRReviews() {
   const repos = useAppStore((s) => s.repos);
@@ -36,7 +21,7 @@ export default function PRReviews() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('');
 
-  const load = async (value) => {
+  const load = async (value: string) => {
     setLoading(true);
     setError('');
     setFilter('');
@@ -45,13 +30,13 @@ export default function PRReviews() {
       if (!value) {
         const res = await apiFetch('/api/recents');
         const d = await res.json();
-        result = d.prs.map((pr) => ({ ...pr, repoName: pr.repository?.name }));
+        result = (d.prs || []).map((pr) => ({ ...pr, repoName: pr.repository?.name }));
       } else {
         const [owner, name] = value.split('/');
         const res = await apiFetch(`/api/prs?owner=${owner}&name=${name}`);
         const d = await res.json();
         if (d.error) throw new Error(d.details || d.error);
-        result = d.prs;
+        result = d.prs || [];
       }
       setPrs(result);
     } catch (err) {
@@ -61,79 +46,80 @@ export default function PRReviews() {
     }
   };
 
-  useEffect(() => { load(''); }, []);
+  useEffect(() => {
+    load('');
+  }, []);
 
-  const filtered = useMemo(() =>
-    filter.trim()
-      ? prs.filter((pr) => pr.title.toLowerCase().includes(filter.toLowerCase()) || String(pr.number).includes(filter))
-      : prs,
-    [prs, filter]
+  const filtered = useMemo(
+    () =>
+      filter.trim()
+        ? prs.filter(
+            (pr) => pr.title.toLowerCase().includes(filter.toLowerCase()) || String(pr.number).includes(filter),
+          )
+        : prs,
+    [prs, filter],
   );
 
   return (
-    <div className="section-content active" id="pr-reviews-section">
-      <div className="section-header">
-        <div className="section-title">
-          <h2>PR Reviews</h2>
-          <div className="section-desc">Pull requests requesting attention across your repositories.</div>
-        </div>
-        <div className="select-wrapper">
-          <select className="custom-select" value={selectedRepo} onChange={(e) => { setSelectedRepo(e.target.value); load(e.target.value); }}>
-            <option value="">All Repositories (Recent 10)</option>
-            {reposWithRemotes.map((r, i) => (
-              <option key={i} value={`${r.owner}/${r.name}`}>{r.owner}/{r.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+    <section id="pr-reviews-section">
+      <PageHeader
+        title="PR Reviews"
+        description="Pull requests requesting attention across your repositories."
+        actions={
+          <RepoSelect
+            repos={reposWithRemotes}
+            value={selectedRepo}
+            onChange={(v) => {
+              setSelectedRepo(v);
+              load(v);
+            }}
+          />
+        }
+      />
 
       {!loading && prs.length > 0 && (
-        <div className="filter-bar">
-          <div className="filter-input-wrap">
-            <span className="filter-icon">🔍</span>
-            <input
-              type="text"
-              className="filter-input"
-              placeholder="Filter by title or PR number…"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </div>
-          <span className="result-count">{filtered.length} of {prs.length}</span>
-        </div>
+        <FilterBar
+          value={filter}
+          onChange={setFilter}
+          placeholder="Filter by title or PR number…"
+          count={`${filtered.length} of ${prs.length}`}
+        />
       )}
 
-      <div className="card-grid">
-        {loading && <SkeletonList />}
-        {!loading && error && <div className="error-message"><strong>GitHub PRs Fetch Failed:</strong> {error}</div>}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-state-icon">🎉</div>
-            <div className="empty-state-title">{filter ? 'No matching PRs' : 'All clear!'}</div>
-            <div className="empty-state-desc">{filter ? 'Try a different search term.' : 'No open pull requests found.'}</div>
-          </div>
+      <div className="flex flex-col gap-3">
+        {loading && <ListSkeleton />}
+        {!loading && error && (
+          <ErrorMessage>
+            <strong>GitHub PRs Fetch Failed:</strong> {error}
+          </ErrorMessage>
         )}
-        {!loading && filtered.map((pr, i) => {
-          const age = ageBadge(pr.createdAt);
-          return (
-            <div key={i} className="list-item">
-              <div className="item-left">
-                <a href={pr.url} target="_blank" rel="noreferrer" className="item-title">
-                  {pr.repoName && <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>[{pr.repoName}]</span>}
-                  #{pr.number} {pr.title} 🔗
-                </a>
-                <div className="pr-item-meta">
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>@{pr.author?.login}</span>
-                  <span className={`age-badge ${age.cls}`}>{age.label}</span>
-                </div>
-              </div>
-              {pr.reviewRequests?.length > 0
-                ? <span className="badge badge-orange">Review Requested</span>
-                : <span className="badge badge-blue">{pr.repoName ? 'Open' : 'Open'}</span>}
-            </div>
-          );
-        })}
+        {!loading && !error && filtered.length === 0 && (
+          <EmptyState
+            icon={PartyPopper}
+            title={filter ? 'No matching PRs' : 'All clear!'}
+            description={filter ? 'Try a different search term.' : 'No open pull requests found.'}
+          />
+        )}
+        {!loading &&
+          filtered.map((pr) => (
+            <ActivityRow
+              key={pr.url}
+              url={pr.url}
+              repoName={pr.repoName}
+              number={pr.number}
+              title={pr.title}
+              author={pr.author?.login}
+              createdAt={pr.createdAt}
+              trailing={
+                pr.reviewRequests?.length > 0 ? (
+                  <Badge variant="orange">Review Requested</Badge>
+                ) : (
+                  <Badge variant="blue">Open</Badge>
+                )
+              }
+            />
+          ))}
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,7 +1,14 @@
-import { useState, useEffect } from 'react';
-import { CheckSquare, Plus, Trash2, ListChecks } from 'lucide-react';
-import { Badge } from '../ui/Badge';
-import { EmptyState } from '../ui/EmptyState';
+import { useEffect, useState } from 'react';
+import { CheckSquare, ListChecks, Plus, Trash2 } from 'lucide-react';
+
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+import FocusCard from './FocusCard';
 
 interface Task {
   id: string;
@@ -19,144 +26,93 @@ export default function FocusChecklist({ focusProject }: FocusChecklistProps) {
 
   useEffect(() => {
     if (!focusProject) return;
-    const savedTasks = localStorage.getItem(`stitch_tasks_${focusProject}`);
-    if (savedTasks) {
-      try {
-        setTasks(JSON.parse(savedTasks));
-      } catch (e) {
-        setTasks([]);
-      }
-    } else {
+    const saved = localStorage.getItem(`stitch_tasks_${focusProject}`);
+    try {
+      setTasks(saved ? JSON.parse(saved) : []);
+    } catch {
       setTasks([]);
     }
   }, [focusProject]);
 
   const saveTasks = (updated: Task[]) => {
     setTasks(updated);
-    if (focusProject) {
-      localStorage.setItem(`stitch_tasks_${focusProject}`, JSON.stringify(updated));
-    }
+    if (focusProject) localStorage.setItem(`stitch_tasks_${focusProject}`, JSON.stringify(updated));
   };
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskText.trim()) return;
-    const item = { id: Date.now().toString(), text: newTaskText.trim(), completed: false };
-    const next = [...tasks, item];
-    saveTasks(next);
+    saveTasks([...tasks, { id: Date.now().toString(), text: newTaskText.trim(), completed: false }]);
     setNewTaskText('');
   };
 
-  const handleToggleTask = (id: string) => {
-    const next = tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
-    saveTasks(next);
-  };
-
-  const handleDeleteTask = (id: string) => {
-    const next = tasks.filter((t) => t.id !== id);
-    saveTasks(next);
-  };
-
-  const handleClearCompletedTasks = () => {
-    const next = tasks.filter((t) => !t.completed);
-    saveTasks(next);
-  };
-
-  const completedTaskCount = tasks.filter((t) => t.completed).length;
-  const taskProgressPct = tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0;
+  const completed = tasks.filter((t) => t.completed).length;
+  const pct = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
 
   return (
-    <div className="focus-card checklist-card" style={{ padding: '1.5rem' }}>
-      <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <CheckSquare size={18} style={{ color: 'var(--primary)' }} />
-          <span>Focus Sub-Task Checklist</span>
-          {tasks.length > 0 && (
-            <Badge variant={completedTaskCount === tasks.length ? 'green' : 'blue'}>
-              {completedTaskCount}/{tasks.length}
-            </Badge>
-          )}
-        </span>
-        {completedTaskCount > 0 && (
-          <button
-            className="btn btn-secondary"
-            style={{
-              padding: '3px 8px',
-              fontSize: '0.75rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-            onClick={handleClearCompletedTasks}
-          >
-            <Trash2 size={12} />
-            <span>Clear Done ({completedTaskCount})</span>
-          </button>
-        )}
-      </h3>
+    <FocusCard
+      icon={CheckSquare}
+      title="Focus Sub-Task Checklist"
+      badge={
+        tasks.length > 0 && (
+          <Badge variant={completed === tasks.length ? 'green' : 'blue'}>
+            {completed}/{tasks.length}
+          </Badge>
+        )
+      }
+      action={
+        completed > 0 && (
+          <Button variant="secondary" size="xs" onClick={() => saveTasks(tasks.filter((t) => !t.completed))}>
+            <Trash2 /> Clear Done ({completed})
+          </Button>
+        )
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Progress value={pct} aria-label="Checklist progress" />
 
-      <div className="checklist-progress-bar-bg">
-        <div className="checklist-progress-bar-fill" style={{ width: `${taskProgressPct}%` }} />
-      </div>
-
-      <form onSubmit={handleAddTask} className="checklist-input-group">
-        <input
-          type="text"
-          className="checklist-input"
-          placeholder="Add a micro-task (e.g., Implement backend endpoint, write test)..."
-          value={newTaskText}
-          onChange={(e) => setNewTaskText(e.target.value)}
-        />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          style={{ padding: '6px 14px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-        >
-          <Plus size={15} />
-          <span>Add</span>
-        </button>
-      </form>
-
-      <div style={{ display: 'flex', flexDirection: 'column', marginTop: 10 }}>
-        {tasks.length > 0 ? (
-          tasks.map((task) => (
-            <div key={task.id} className={`checklist-item ${task.completed ? 'completed' : ''}`}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  className="checklist-checkbox"
-                  checked={task.completed}
-                  onChange={() => handleToggleTask(task.id)}
-                />
-                <span style={{ fontSize: '0.88rem' }}>{task.text}</span>
-              </div>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: 4,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  transition: 'color 0.15s ease',
-                }}
-                className="hover-danger"
-                onClick={() => handleDeleteTask(task.id)}
-                title="Delete task"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))
-        ) : (
-          <EmptyState
-            icon={ListChecks}
-            title="No sub-tasks yet"
-            description="Break down your active work into actionable steps!"
+        <form onSubmit={handleAddTask} className="flex gap-2">
+          <Input
+            placeholder="Add a micro-task (e.g., Implement backend endpoint, write test)..."
+            value={newTaskText}
+            onChange={(e) => setNewTaskText(e.target.value)}
           />
+          <Button type="submit">
+            <Plus /> Add
+          </Button>
+        </form>
+
+        {tasks.length > 0 ? (
+          <ul className="flex flex-col divide-y">
+            {tasks.map((task) => (
+              <li key={task.id} className="flex items-center justify-between gap-3 py-2">
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                  <Checkbox
+                    checked={task.completed}
+                    onCheckedChange={() =>
+                      saveTasks(tasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t)))
+                    }
+                  />
+                  <span className={cn('text-sm break-words', task.completed && 'text-muted-foreground line-through')}>
+                    {task.text}
+                  </span>
+                </label>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => saveTasks(tasks.filter((t) => t.id !== task.id))}
+                  aria-label={`Delete task ${task.text}`}
+                >
+                  <Trash2 />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={ListChecks} title="No sub-tasks yet" description="Break down your active work into actionable steps!" />
         )}
       </div>
-    </div>
+    </FocusCard>
   );
 }

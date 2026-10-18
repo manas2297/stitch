@@ -1,6 +1,13 @@
 import { useState } from 'react';
-import { useToast } from './Toast';
+import { ExternalLink, Map, Plus } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { apiFetch } from '../store/useAppStore';
+import { useToast } from './Toast';
 
 export default function Roadmap({ owner, name, initialTasks, issue }) {
   const [tasks, setTasks] = useState(initialTasks || []);
@@ -34,54 +41,56 @@ export default function Roadmap({ owner, name, initialTasks, issue }) {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Tasks sync to a GitHub issue labeled{' '}
-          <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: 4, fontSize: '0.8rem' }}>roadmap</code>.
+    <div className="flex flex-col gap-4">
+      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div>
+          Tasks sync to a GitHub issue labeled <code className="bg-muted rounded px-1.5 py-0.5 text-xs">roadmap</code>.
         </div>
         {issue ? (
-          <a href={issue.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-            GitHub #{issue.number} ↗
+          <a
+            href={issue.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+          >
+            GitHub #{issue.number} <ExternalLink className="size-3" />
           </a>
         ) : (
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Issue auto-created on first task.
-          </span>
+          <span className="text-xs">Issue auto-created on first task.</span>
         )}
       </div>
 
-      <div className="roadmap-list">
-        {tasks.length === 0 ? (
-          <div className="empty-state" style={{ padding: '1.5rem' }}>
-            <div className="empty-state-icon">🗺️</div>
-            <div className="empty-state-title">No roadmap items yet</div>
-            <div className="empty-state-desc">Add your first task below — it'll be synced to GitHub as an issue.</div>
-          </div>
-        ) : (
-          tasks.map((t, i) => (
-            <div key={i} className={`roadmap-task ${t.done ? 'done' : ''}`}>
-              <input type="checkbox" className="task-checkbox" defaultChecked={t.done} disabled />
-              <span className="task-text">{t.text}</span>
-              {t.done && <span style={{ fontSize: '0.72rem', color: 'var(--success)', marginLeft: 'auto' }}>Done ✓</span>}
-            </div>
-          ))
-        )}
-      </div>
+      {tasks.length === 0 ? (
+        <EmptyState
+          icon={Map}
+          title="No roadmap items yet"
+          description="Add your first task below — it'll be synced to GitHub as an issue."
+        />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {tasks.map((t, i) => (
+            <li key={i} className="bg-card flex items-center gap-3 rounded-lg border px-4 py-3">
+              <Checkbox checked={t.done} disabled aria-label={t.text} />
+              <span className={cn('flex-1 text-sm break-words', t.done && 'text-muted-foreground line-through')}>
+                {t.text}
+              </span>
+              {t.done && <span className="text-success text-xs">Done ✓</span>}
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="roadmap-add-form">
-        <input
-          type="text"
-          className="roadmap-input"
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !saving && addTask()}
           placeholder="New task — press Enter or click Add…"
           disabled={saving}
         />
-        <button className="btn" onClick={addTask} disabled={saving}>
-          {saving ? 'Saving…' : '+ Add Task'}
-        </button>
+        <Button onClick={addTask} disabled={saving}>
+          <Plus /> {saving ? 'Saving…' : 'Add Task'}
+        </Button>
       </div>
     </div>
   );
