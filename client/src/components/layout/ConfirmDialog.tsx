@@ -23,10 +23,7 @@ export default function ConfirmDialog() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => resolveConfirm(false)}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive hover:bg-destructive/90 text-white"
-            onClick={() => resolveConfirm(true)}
-          >
+          <AlertDialogAction variant="destructive" onClick={() => resolveConfirm(true)}>
             Yes, Delete
           </AlertDialogAction>
         </AlertDialogFooter>
