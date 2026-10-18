@@ -1492,62 +1492,6 @@ main.sidebar-collapsed {
   border: 1px solid var(--border-color);
 }
 
-/* ── Toast Notifications ─────────────────────── */
-.toast-container {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 9999;
-  pointer-events: none;
-}
-
-.toast {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  backdrop-filter: blur(16px);
-  pointer-events: all;
-  min-width: 280px;
-  max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
-  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.toast.exiting {
-  animation: toastOut 0.2s ease-in forwards;
-}
-
-@keyframes toastIn {
-  from { opacity: 0; transform: translateX(20px) scale(0.95); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-@keyframes toastOut {
-  from { opacity: 1; transform: translateX(0) scale(1); }
-  to   { opacity: 0; transform: translateX(20px) scale(0.9); }
-}
-
-.toast-success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #6ee7b7; }
-.toast-error   { background: rgba(239, 68, 68, 0.15);  border: 1px solid rgba(239, 68, 68, 0.3);  color: #fca5a5; }
-.toast-info    { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #a5b4fc; }
-.toast-warning { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fcd34d; }
-
-.toast-icon { font-size: 1.1rem; flex-shrink: 0; }
-.toast-msg  { flex: 1; line-height: 1.4; }
-.toast-close {
-  background: transparent; border: none; color: inherit;
-  opacity: 0.5; cursor: pointer; font-size: 1rem;
-  padding: 0; transition: opacity 0.15s;
-}
-.toast-close:hover { opacity: 1; }
-
 /* ── Age Badge ───────────────────────────────── */
 .age-badge {
   font-size: 0.7rem;

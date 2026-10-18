@@ -91,3 +91,13 @@ To get the codebase running locally for development:
 
 - Use the GitHub Issue Tracker to report bugs or submit feature requests.
 - Provide a clear title and description, steps to reproduce the issue, and expected behavior.
+
+## UI components
+
+The UI uses [shadcn/ui](https://ui.shadcn.com/) on Tailwind CSS v4. Components live in `client/src/components/ui/` and are owned by this repo (edit them freely). Add new ones with:
+
+```bash
+cd client && npx shadcn@latest add <component>
+```
+
+Use Tailwind utilities and the shared components for new UI. The legacy global stylesheet (`client/src/styles/index.css`) is loaded in a lower-priority layer, so utilities always override it; when you migrate a screen, delete the CSS rules it no longer uses. Note the `Badge.tsx`/`badge.tsx` casing clash on macOS: keep PascalCase file names for components.

@@ -83,7 +83,7 @@ stitch/
       components/            ← Tab panels & UI elements
         focus/               ← PomodoroTimer, FocusChecklist, FocusScratchpad,
                                 ArchitectureDiagram (React Flow)
-        ui/                  ← Badge, EmptyState, StatCard
+        ui/                  ← shadcn/ui components (Badge, Card, Sonner) + EmptyState, StatCard
   config.json                ← Local repo database (gitignored)
 ```
 
@@ -131,7 +131,7 @@ Stitch runs in three modes:
 ### Prerequisites
 
 - **Go 1.24+**
-- **Node.js 18+**
+- **Node.js 20+**
 - **GitHub CLI** installed and authenticated:
 
 ```bash
@@ -203,6 +203,7 @@ Output: **`build/bin/Stitch.app`**
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 19, TypeScript, Vite, Zustand |
+| UI components | [shadcn/ui](https://ui.shadcn.com/) (Radix + Tailwind CSS v4), [Sonner](https://sonner.emilkowal.ski/) toasts, [lucide-react](https://lucide.dev/) icons |
 | Diagrams | [@xyflow/react](https://reactflow.dev/) (React Flow) |
 | Backend | Go 1.24+ |
 | Desktop | [Wails v2](https://wails.io/) |
