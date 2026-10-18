@@ -77,7 +77,7 @@ stitch/
 │
 ├── client/                         # ── FRONTEND ──
 │   ├── index.html                  # Vite HTML shell
-│   ├── vite.config.js              # Vite config (outDir → ../backend/dist)
+│   ├── vite.config.mjs              # Vite config (outDir → ../backend/dist)
 │   └── src/
 │       ├── main.jsx                # React entrypoint
 │       ├── App.jsx                 # Shell layout, energy panel, tab router
@@ -224,7 +224,7 @@ All Go logic lives inside `backend/`. Each feature area is a sub-package under `
 | [GitHub CLI (`gh`)](https://cli.github.com/) | Auth, issues, PRs, releases, repo contents — must be installed and logged in |
 | `git` | Local branch status, remotes, commits |
 | Go 1.25+ | Backend development & Wails binding |
-| Node.js 18+ | Frontend dev/build |
+| Node.js 20+ | Frontend dev/build |
 | [React 19](https://react.dev/) | UI framework |
 | [Zustand 5](https://zustand.docs.pmnd.rs/) | Frontend global state |
 | [@xyflow/react](https://reactflow.dev/) | Interactive architecture diagram canvas |

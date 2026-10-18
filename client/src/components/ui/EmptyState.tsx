@@ -1,6 +1,8 @@
 import React from 'react';
 import { LucideIcon, Sparkles } from 'lucide-react';
 
+import { cn } from '@/lib/utils';
+
 export interface EmptyStateProps {
   icon?: LucideIcon;
   title: string;
@@ -14,16 +16,18 @@ export function EmptyState({
   title,
   description,
   action,
-  className = '',
+  className,
 }: EmptyStateProps) {
   return (
-    <div className={`empty-state ${className}`} style={{ padding: '2rem 1rem' }}>
-      <div className="empty-state-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className={cn('flex flex-col items-center justify-center gap-3 px-4 py-8 text-center', className)}>
+      <div className="text-muted-foreground/70 inline-flex items-center justify-center">
         <IconComponent size={28} />
       </div>
-      <div className="empty-state-title">{title}</div>
-      {description && <div className="empty-state-desc">{description}</div>}
-      {action && <div style={{ marginTop: '1rem' }}>{action}</div>}
+      <div className="text-base font-bold">{title}</div>
+      {description && (
+        <div className="text-muted-foreground max-w-80 text-sm leading-relaxed">{description}</div>
+      )}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

@@ -1,29 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { CircleCheck } from 'lucide-react';
+
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import useAppStore, { apiFetch } from '../store/useAppStore';
+import ActivityRow from './layout/ActivityRow';
+import FilterBar from './layout/FilterBar';
+import { ErrorMessage } from './layout/LoadingState';
+import ListSkeleton from './layout/ListSkeleton';
+import PageHeader from './layout/PageHeader';
+import RepoSelect from './layout/RepoSelect';
 
-function ageBadge(dateStr) {
-  const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
-  if (days < 2)  return { cls: 'age-fresh',  label: 'Today' };
-  if (days < 7)  return { cls: 'age-recent', label: `${Math.floor(days)}d ago` };
-  if (days < 30) return { cls: 'age-aging',  label: `${Math.floor(days)}d ago` };
-  return           { cls: 'age-stale',  label: `${Math.floor(days / 30)}mo ago` };
-}
-
-function SkeletonList() {
-  return (
-    <div className="skeleton-row">
-      {[1,2,3,4,5].map((i) => (
-        <div key={i} className="skeleton-item">
-          <div className="skeleton skeleton-avatar" />
-          <div className="skeleton-lines">
-            <div className="skeleton skeleton-line full" />
-            <div className="skeleton skeleton-line medium" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+const ALL_LABELS = '__all__';
 
 export default function Issues() {
   const repos = useAppStore((s) => s.repos);
@@ -36,7 +26,7 @@ export default function Issues() {
   const [filter, setFilter] = useState('');
   const [labelFilter, setLabelFilter] = useState('');
 
-  const load = async (value) => {
+  const load = async (value: string) => {
     setLoading(true);
     setError('');
     setFilter('');
@@ -46,13 +36,13 @@ export default function Issues() {
       if (!value) {
         const res = await apiFetch('/api/recents');
         const d = await res.json();
-        result = d.issues.map((i) => ({ ...i, repoName: i.repository?.name }));
+        result = (d.issues || []).map((i) => ({ ...i, repoName: i.repository?.name }));
       } else {
         const [owner, name] = value.split('/');
         const res = await apiFetch(`/api/issues?owner=${owner}&name=${name}`);
         const d = await res.json();
         if (d.error) throw new Error(d.details || d.error);
-        result = d.issues;
+        result = d.issues || [];
       }
       setIssues(result);
     } catch (err) {
@@ -62,20 +52,21 @@ export default function Issues() {
     }
   };
 
-  useEffect(() => { load(''); }, []);
+  useEffect(() => {
+    load('');
+  }, []);
 
-  // Collect unique labels across issues
   const allLabels = useMemo(() => {
-    const set = new Set();
-    issues.forEach((i) => i.labels?.forEach((l) => set.add(l.name)));
+    const set = new Set<string>();
+    issues.forEach((i) => i.labels?.forEach((l) => set.add(String(l.name))));
     return [...set].sort();
   }, [issues]);
 
   const filtered = useMemo(() => {
     let result = issues;
     if (filter.trim()) {
-      result = result.filter((i) =>
-        i.title.toLowerCase().includes(filter.toLowerCase()) || String(i.number).includes(filter)
+      result = result.filter(
+        (i) => i.title.toLowerCase().includes(filter.toLowerCase()) || String(i.number).includes(filter),
       );
     }
     if (labelFilter) {
@@ -85,87 +76,90 @@ export default function Issues() {
   }, [issues, filter, labelFilter]);
 
   return (
-    <div className="section-content active" id="issues-section">
-      <div className="section-header">
-        <div className="section-title">
-          <h2>Open Issues</h2>
-          <div className="section-desc">Find outstanding bugs and features to tackle.</div>
-        </div>
-        <div className="select-wrapper">
-          <select className="custom-select" value={selectedRepo} onChange={(e) => { setSelectedRepo(e.target.value); load(e.target.value); }}>
-            <option value="">All Repositories (Recent 10)</option>
-            {reposWithRemotes.map((r, i) => (
-              <option key={i} value={`${r.owner}/${r.name}`}>{r.owner}/{r.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+    <section id="issues-section">
+      <PageHeader
+        title="Open Issues"
+        description="Find outstanding bugs and features to tackle."
+        actions={
+          <RepoSelect
+            repos={reposWithRemotes}
+            value={selectedRepo}
+            onChange={(v) => {
+              setSelectedRepo(v);
+              load(v);
+            }}
+          />
+        }
+      />
 
       {!loading && issues.length > 0 && (
-        <div className="filter-bar">
-          <div className="filter-input-wrap">
-            <span className="filter-icon">🔍</span>
-            <input
-              type="text"
-              className="filter-input"
-              placeholder="Filter by title or issue number…"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </div>
+        <FilterBar
+          value={filter}
+          onChange={setFilter}
+          placeholder="Filter by title or issue number…"
+          count={`${filtered.length} of ${issues.length}`}
+        >
           {allLabels.length > 0 && (
-            <select
-              className="custom-select"
-              style={{ minWidth: 140, fontSize: '0.85rem', padding: '8px 12px' }}
-              value={labelFilter}
-              onChange={(e) => setLabelFilter(e.target.value)}
-            >
-              <option value="">All Labels</option>
-              {allLabels.map((l) => <option key={l as string} value={l as string}>{l as string}</option>)}
-            </select>
+            <Select value={labelFilter || ALL_LABELS} onValueChange={(v) => setLabelFilter(v === ALL_LABELS ? '' : v)}>
+              <SelectTrigger className="w-full sm:w-44" aria-label="Label">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_LABELS}>All Labels</SelectItem>
+                {allLabels.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <span className="result-count">{filtered.length} of {issues.length}</span>
-        </div>
+        </FilterBar>
       )}
 
-      <div className="card-grid">
-        {loading && <SkeletonList />}
-        {!loading && error && <div className="error-message"><strong>GitHub Issues Fetch Failed:</strong> {error}</div>}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-state-icon">✅</div>
-            <div className="empty-state-title">{filter || labelFilter ? 'No matching issues' : 'No open issues'}</div>
-            <div className="empty-state-desc">{filter || labelFilter ? 'Try a different filter.' : 'Your repos are looking healthy!'}</div>
-          </div>
+      <div className="flex flex-col gap-3">
+        {loading && <ListSkeleton />}
+        {!loading && error && (
+          <ErrorMessage>
+            <strong>GitHub Issues Fetch Failed:</strong> {error}
+          </ErrorMessage>
         )}
-        {!loading && filtered.map((issue, i) => {
-          const age = ageBadge(issue.createdAt);
-          return (
-            <div key={i} className="list-item">
-              <div className="item-left">
-                <a href={issue.url} target="_blank" rel="noreferrer" className="item-title">
-                  {issue.repoName && <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>[{issue.repoName}]</span>}
-                  #{issue.number} {issue.title} 🔗
-                </a>
-                <div className="pr-item-meta">
-                  {issue.author && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>@{issue.author.login}</span>}
-                  <span className={`age-badge ${age.cls}`}>{age.label}</span>
-                  {issue.labels?.map((l, j) => (
-                    <span
-                      key={String(l.name)}
-                      className="badge"
-                      style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', textTransform: 'none', cursor: 'pointer' }}
-                      onClick={() => setLabelFilter(l.name === labelFilter ? '' : l.name)}
+        {!loading && !error && filtered.length === 0 && (
+          <EmptyState
+            icon={CircleCheck}
+            title={filter || labelFilter ? 'No matching issues' : 'No open issues'}
+            description={filter || labelFilter ? 'Try a different filter.' : 'Your repos are looking healthy!'}
+          />
+        )}
+        {!loading &&
+          filtered.map((issue) => (
+            <ActivityRow
+              key={issue.url}
+              url={issue.url}
+              repoName={issue.repoName}
+              number={issue.number}
+              title={issue.title}
+              author={issue.author?.login}
+              createdAt={issue.createdAt}
+              extra={issue.labels?.map((l) => {
+                const name = String(l.name);
+                return (
+                  <button key={name} type="button" onClick={() => setLabelFilter(name === labelFilter ? '' : name)}>
+                    <Badge
+                      variant="default"
+                      className={cn(
+                        'border text-[0.68rem] normal-case transition-colors hover:bg-muted',
+                        name === labelFilter && 'border-primary text-primary',
+                      )}
                     >
-                      {String(l.name)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                      {name}
+                    </Badge>
+                  </button>
+                );
+              })}
+            />
+          ))}
       </div>
-    </div>
+    </section>
   );
 }

@@ -91,3 +91,13 @@ To get the codebase running locally for development:
 
 - Use the GitHub Issue Tracker to report bugs or submit feature requests.
 - Provide a clear title and description, steps to reproduce the issue, and expected behavior.
+
+## UI components
+
+The UI uses [shadcn/ui](https://ui.shadcn.com/) on Tailwind CSS v4. Components live in `client/src/components/ui/` and are owned by this repo (edit them freely). Add new ones with:
+
+```bash
+cd client && npx shadcn@latest add <component>
+```
+
+Style with Tailwind utilities and the shared components (`components/ui`, `components/layout`) — there is no global component CSS. Theme tokens live in `client/src/styles/tailwind.css`; the only other stylesheets are `markdown.css` (rendered markdown) and `reactflow.css` (diagram overrides). The layout is mobile-first: build for narrow screens, then add `sm:`/`md:`/`lg:` variants. Note the `Badge.tsx`/`badge.tsx` casing clash on macOS: keep PascalCase file names for components.

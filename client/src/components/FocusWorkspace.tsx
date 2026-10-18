@@ -1,25 +1,78 @@
-import { useState, useEffect } from 'react';
-import useAppStore, { apiFetch } from '../store/useAppStore';
-import PomodoroTimer from './focus/PomodoroTimer';
-import FocusScratchpad from './focus/FocusScratchpad';
-import FocusChecklist from './focus/FocusChecklist';
-import ArchitectureDiagram from './focus/ArchitectureDiagram';
-import { Badge } from './ui/Badge';
-import { EmptyState } from './ui/EmptyState';
+import { useEffect, useState } from 'react';
 import {
-  Lightbulb,
-  GitPullRequest,
-  FileCode,
-  GitBranch,
   Bot,
-  Globe,
   ExternalLink,
-  FolderTree,
-  Folder,
+  FileCode,
   FileText,
+  Folder,
+  FolderTree,
+  GitBranch,
+  GitPullRequest,
+  Globe,
+  Lightbulb,
   Play,
   Target,
+  type LucideIcon,
 } from 'lucide-react';
+
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import useAppStore, { apiFetch } from '../store/useAppStore';
+import ArchitectureDiagram from './focus/ArchitectureDiagram';
+import FocusCard from './focus/FocusCard';
+import FocusChecklist from './focus/FocusChecklist';
+import FocusScratchpad from './focus/FocusScratchpad';
+import PomodoroTimer from './focus/PomodoroTimer';
+import LoadingState, { ErrorMessage } from './layout/LoadingState';
+import PageHeader from './layout/PageHeader';
+
+function IssueRow({ number, url, title, author, trailing, tone }: {
+  number: number;
+  url: string;
+  title: string;
+  author?: string;
+  trailing?: React.ReactNode;
+  tone: 'orange' | 'blue';
+}) {
+  return (
+    <div className="bg-card flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+        <Badge variant={tone} className="shrink-0 px-1.5 py-0.5 text-[0.7rem]">
+          #{number}
+        </Badge>
+        <a href={url} target="_blank" rel="noreferrer" className="hover:text-primary min-w-0 font-medium break-words">
+          {title}
+        </a>
+      </div>
+      <div className="text-muted-foreground flex shrink-0 items-center gap-2.5 pl-1 text-xs sm:pl-0">
+        {author && <span>by @{author}</span>}
+        {trailing}
+      </div>
+    </div>
+  );
+}
+
+function ProjectSelect({ repos, value, onChange }) {
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger className="w-full sm:w-72" aria-label="Active project">
+        <SelectValue placeholder="-- Select Active Project --" />
+      </SelectTrigger>
+      <SelectContent>
+        {repos.map((repo) => {
+          const v = repo.path || `${repo.owner}/${repo.name}`;
+          return (
+            <SelectItem key={v} value={v}>
+              [{repo.type === 'local' ? 'Local' : 'GitHub'}] {repo.name}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export default function FocusWorkspace() {
   const { repos, focusProject, setFocusProject } = useAppStore();
@@ -54,9 +107,7 @@ export default function FocusWorkspace() {
   }, [focusProject]);
 
   useEffect(() => {
-    if (data && data.active && data.type !== 'local') {
-      loadDir('');
-    }
+    if (data && data.active && data.type !== 'local') loadDir('');
   }, [data]);
 
   const loadDir = async (path: string) => {
@@ -64,7 +115,7 @@ export default function FocusWorkspace() {
     setExplorerPath(path);
     setFileViewer(null);
     const res = await apiFetch(
-      `/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`
+      `/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`,
     );
     const items = await res.json();
     if (Array.isArray(items)) {
@@ -76,7 +127,7 @@ export default function FocusWorkspace() {
   const loadFile = async (path: string) => {
     setFileViewer({ path, content: 'Loading…' });
     const res = await apiFetch(
-      `/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`
+      `/api/focus/contents?owner=${data.repo.owner}&name=${data.repo.name}&path=${encodeURIComponent(path)}`,
     );
     const fd = await res.json();
     setFileViewer({ path, content: fd.decodedContent ?? 'Binary or too large to display.' });
@@ -88,14 +139,14 @@ export default function FocusWorkspace() {
     const script = data.repo.buildScripts?.includes('lint')
       ? 'lint'
       : data.repo.buildScripts?.includes('build')
-      ? 'build'
-      : '';
+        ? 'build'
+        : '';
 
     const isDesktop = (window as any).go !== undefined || import.meta.env.PROD;
     const baseUrl = isDesktop ? 'http://127.0.0.1:4000' : '';
 
     const es = new EventSource(
-      `${baseUrl}/api/build/run?path=${encodeURIComponent(data.repo.path)}&script=${encodeURIComponent(script)}`
+      `${baseUrl}/api/build/run?path=${encodeURIComponent(data.repo.path)}&script=${encodeURIComponent(script)}`,
     );
     es.onmessage = (ev) => {
       const d = JSON.parse(ev.data);
@@ -115,413 +166,199 @@ export default function FocusWorkspace() {
 
   const breadcrumbParts = explorerPath.split('/').filter(Boolean);
 
+  const header = (
+    <PageHeader
+      title="Focus Area Workspace"
+      description="Zero in on your active repository context."
+      actions={<ProjectSelect repos={repos} value={focusProject} onChange={setFocusProject} />}
+    />
+  );
+
   if (!focusProject) {
     return (
-      <div className="section-content active" id="focus-section">
-        <div className="section-header">
-          <div className="section-title">
-            <h2>Focus Area Workspace</h2>
-            <div className="section-desc">Zero in on your active repository context.</div>
-          </div>
-          <div className="select-wrapper">
-            <select
-              className="custom-select"
-              value={focusProject}
-              onChange={(e) => setFocusProject(e.target.value)}
-            >
-              <option value="">-- Select Active Project --</option>
-              {repos.map((repo, i) => {
-                const value = repo.path || `${repo.owner}/${repo.name}`;
-                return (
-                  <option key={i} value={value}>
-                    [{repo.type === 'local' ? 'Local' : 'GitHub'}] {repo.name}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
+      <section id="focus-section">
+        {header}
         <EmptyState
           icon={Target}
           title="No Active Project in Focus"
           description="Select a repository from the dropdown above to start working in the Focus Workspace."
         />
-      </div>
+      </section>
     );
   }
 
+  const ready = data && data.active && !loading;
+  const isLocal = ready && data.type === 'local';
+  const issuesList = ready && Array.isArray(data.issues) ? data.issues : [];
+  const features = issuesList.filter((i: any) => i.labels?.some((l: any) => /feature|enhancement/i.test(l.name)));
+  const prs = ready && Array.isArray(data.prs) ? data.prs : [];
+
   return (
-    <div className="section-content active" id="focus-section">
-      <div className="section-header">
-        <div className="section-title">
-          <h2>Focus Area Workspace</h2>
-          <div className="section-desc">Zero in on your active repository context.</div>
-        </div>
-        <div className="select-wrapper">
-          <select
-            className="custom-select"
-            value={focusProject}
-            onChange={(e) => setFocusProject(e.target.value)}
-          >
-            <option value="">-- Select Active Project --</option>
-            {repos.map((repo, i) => {
-              const value = repo.path || `${repo.owner}/${repo.name}`;
-              return (
-                <option key={i} value={value}>
-                  [{repo.type === 'local' ? 'Local' : 'GitHub'}] {repo.name}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-      </div>
+    <section id="focus-section">
+      {header}
 
-      {loading && (
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <span>Retrieving Workspace Context…</span>
-        </div>
-      )}
-      {error && <div className="error-message">Failed to load focus workspace: {error}</div>}
+      {loading && <LoadingState label="Retrieving Workspace Context…" />}
+      {error && <ErrorMessage>Failed to load focus workspace: {error}</ErrorMessage>}
 
-      {data && data.active && !loading && (() => {
-        const isLocal = data.type === 'local';
-        const issuesList = Array.isArray(data.issues) ? data.issues : [];
-        const features = issuesList.filter((i: any) =>
-          i.labels?.some((l: any) => /feature|enhancement/i.test(l.name))
-        );
-        const prs = Array.isArray(data.prs) ? data.prs : [];
-
-        return (
-          <div className="focus-grid">
-            <div className="focus-main">
-              {/* Features to Work On */}
-              <div className="focus-card">
-                <h3>
-                  <Lightbulb size={18} style={{ color: '#d97706' }} />
-                  <span>Features to Work On</span>
-                  {features.length > 0 && <Badge variant="orange">{features.length}</Badge>}
-                </h3>
-                <div style={{ marginTop: 12 }}>
-                  {features.length > 0 ? (
-                    features.map((f: any) => (
-                      <div
-                        key={f.number}
-                        className="list-item"
-                        style={{
-                          marginBottom: 8,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 12,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                          <span className="issue-number-badge">#{f.number}</span>
-                          <a
-                            href={f.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="item-title"
-                            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {f.title}
-                          </a>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                          <span className="item-subtitle" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            by @{f.author?.login}
-                          </span>
-                          <Badge variant="purple">Feature</Badge>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <EmptyState
-                      icon={Lightbulb}
-                      title="No active feature issues"
-                      description="Issues labeled 'feature' or 'enhancement' will appear here."
+      {ready && (
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="flex min-w-0 flex-col gap-6">
+            <FocusCard
+              icon={Lightbulb}
+              iconClassName="text-amber-600"
+              title="Features to Work On"
+              badge={features.length > 0 && <Badge variant="orange">{features.length}</Badge>}
+            >
+              {features.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {features.map((f: any) => (
+                    <IssueRow
+                      key={f.number}
+                      number={f.number}
+                      url={f.url}
+                      title={f.title}
+                      author={f.author?.login}
+                      tone="orange"
+                      trailing={<Badge variant="purple">Feature</Badge>}
                     />
-                  )}
+                  ))}
                 </div>
-              </div>
-
-              {/* Modular Sub-Task Checklist */}
-              <FocusChecklist focusProject={focusProject} />
-
-              {/* Modular Architecture Diagramming Canvas */}
-              <ArchitectureDiagram focusProject={focusProject} />
-
-              {/* PR Reviews */}
-              <div className="focus-card">
-                <h3>
-                  <GitPullRequest size={18} style={{ color: 'var(--primary)' }} />
-                  <span>Pull Request Reviews</span>
-                  {prs.length > 0 && <Badge variant="blue">{prs.length}</Badge>}
-                </h3>
-                <div style={{ marginTop: 12 }}>
-                  {prs.length > 0 ? (
-                    prs.map((pr: any) => (
-                      <div
-                        key={pr.number}
-                        className="list-item"
-                        style={{
-                          marginBottom: 8,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 12,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                          <span className="pr-number-badge">#{pr.number}</span>
-                          <a
-                            href={pr.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="item-title"
-                            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {pr.title}
-                          </a>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                          <span className="item-subtitle" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            by @{pr.author?.login}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <EmptyState
-                      icon={GitPullRequest}
-                      title="No active pull requests"
-                      description="Open pull requests will be listed here for quick review."
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Remote file viewer */}
-              {fileViewer && (
-                <div className="focus-card" style={{ marginTop: '1.5rem' }}>
-                  <h3
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      borderBottom: '1px solid var(--border-color)',
-                      paddingBottom: 8,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <FileCode size={18} style={{ color: 'var(--primary)' }} />
-                      <span>{fileViewer.path.split('/').pop()}</span>
-                    </span>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                      onClick={() => setFileViewer(null)}
-                    >
-                      Close Viewer
-                    </button>
-                  </h3>
-                  <pre
-                    style={{
-                      margin: 0,
-                      background: '#f8fafc',
-                      padding: 14,
-                      borderRadius: 8,
-                      border: '1px solid var(--border-color)',
-                      overflowX: 'auto',
-                      fontFamily: 'monospace',
-                      fontSize: '0.8rem',
-                      maxHeight: 400,
-                      color: '#0f172a',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    <code>{fileViewer.content}</code>
-                  </pre>
-                </div>
-              )}
-            </div>
-
-            <div className="focus-side">
-              {/* Modular Pomodoro Focus Timer */}
-              <PomodoroTimer />
-
-              {/* Modular Quick Scratchpad */}
-              <FocusScratchpad focusProject={focusProject} />
-
-              {isLocal ? (
-                <>
-                  <div className="focus-card">
-                    <h3>
-                      <GitBranch size={18} style={{ color: 'var(--primary)' }} />
-                      <span>Local Git State</span>
-                    </h3>
-                    <div style={{ fontSize: '0.85rem', marginBottom: 12, color: 'var(--text-muted)' }}>
-                      Branch: <strong style={{ color: 'var(--text-color)' }}>{data.repo?.branch || 'main'}</strong>
-                    </div>
-                    {data.localStatus && data.localStatus.length > 0 ? (
-                      <div className="git-status-box">
-                        {data.localStatus.map((s: string, i: number) => (
-                          <div key={i}>{s}</div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Working directory clean.</div>
-                    )}
-                  </div>
-                  <div className="focus-card bot-review-card">
-                    <h3>
-                      <Bot size={18} style={{ color: 'var(--primary)' }} />
-                      <span>Bot Review Diagnostics</span>
-                    </h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
-                      Run a local validation script to audit build health.
-                    </p>
-                    <button
-                      className="btn"
-                      style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                      onClick={runBotAudit}
-                      disabled={botRunning}
-                    >
-                      <Play size={14} />
-                      <span>{botRunning ? 'Running…' : 'Run Build Audit'}</span>
-                    </button>
-                    {botOutput && (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          background: '#0f172a',
-                          padding: 12,
-                          borderRadius: 8,
-                          fontFamily: 'monospace',
-                          fontSize: '0.78rem',
-                          border: '1px solid #1e293b',
-                          maxHeight: 200,
-                          overflowY: 'auto',
-                          whiteSpace: 'pre-wrap',
-                          color: '#38bdf8',
-                        }}
-                      >
-                        {botOutput}
-                      </div>
-                    )}
-                  </div>
-                </>
               ) : (
-                <>
-                  <div className="focus-card">
-                    <h3>
-                      <Globe size={18} style={{ color: 'var(--primary)' }} />
-                      <span>Remote Repository Context</span>
-                    </h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                      Remote GitHub repository. Local commands are disabled for web projects.
-                    </p>
-                    <div style={{ marginTop: 12 }}>
-                      <a
-                        href={`https://github.com/${data.repo.owner}/${data.repo.name}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn"
-                        style={{ width: '100%', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
-                      >
-                        <span>View on GitHub</span>
-                        <ExternalLink size={14} />
-                      </a>
-                    </div>
-                  </div>
+                <EmptyState
+                  icon={Lightbulb}
+                  title="No active feature issues"
+                  description="Issues labeled 'feature' or 'enhancement' will appear here."
+                />
+              )}
+            </FocusCard>
 
-                  <div className="focus-card" style={{ marginTop: '1.5rem' }}>
-                    <h3>
-                      <FolderTree size={18} style={{ color: 'var(--primary)' }} />
-                      <span>Remote File Explorer</span>
-                    </h3>
-                    <div
-                      style={{
-                        fontSize: '0.8rem',
-                        color: 'var(--text-muted)',
-                        marginBottom: 10,
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <span
-                        style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 600 }}
-                        onClick={() => loadDir('')}
-                      >
-                        root
-                      </span>
-                      {breadcrumbParts.map((p, i) => {
-                        const accumulated = breadcrumbParts.slice(0, i + 1).join('/');
-                        return (
-                          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ color: 'var(--border-color)' }}>/</span>
-                            <span
-                              style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 600 }}
-                              onClick={() => loadDir(accumulated)}
-                            >
-                              {p}
-                            </span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 4,
-                        maxHeight: 250,
-                        overflowY: 'auto',
-                        background: '#f8fafc',
-                        padding: 8,
-                        borderRadius: 8,
-                        border: '1px solid var(--border-color)',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {explorerItems.map((item, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '6px 10px',
-                            cursor: 'pointer',
-                            borderRadius: 6,
-                            transition: 'background 0.15s ease',
-                          }}
-                          onClick={() => (item.type === 'dir' ? loadDir(item.path) : loadFile(item.path))}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                        >
-                          {item.type === 'dir' ? (
-                            <Folder size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                          ) : (
-                            <FileText size={15} style={{ color: '#64748b', flexShrink: 0 }} />
-                          )}
-                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {item.name}
-                          </span>
-                        </div>
+            <FocusChecklist focusProject={focusProject} />
+            <ArchitectureDiagram focusProject={focusProject} />
+
+            <FocusCard
+              icon={GitPullRequest}
+              title="Pull Request Reviews"
+              badge={prs.length > 0 && <Badge variant="blue">{prs.length}</Badge>}
+            >
+              {prs.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {prs.map((pr: any) => (
+                    <IssueRow key={pr.number} number={pr.number} url={pr.url} title={pr.title} author={pr.author?.login} tone="blue" />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={GitPullRequest}
+                  title="No active pull requests"
+                  description="Open pull requests will be listed here for quick review."
+                />
+              )}
+            </FocusCard>
+
+            {fileViewer && (
+              <FocusCard
+                icon={FileCode}
+                title={fileViewer.path.split('/').pop()}
+                action={
+                  <Button variant="secondary" size="xs" onClick={() => setFileViewer(null)}>
+                    Close Viewer
+                  </Button>
+                }
+              >
+                <pre className="bg-muted/50 max-h-96 overflow-auto rounded-lg border p-3.5 font-mono text-xs break-words whitespace-pre-wrap">
+                  <code>{fileViewer.content}</code>
+                </pre>
+              </FocusCard>
+            )}
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-6">
+            <PomodoroTimer />
+            <FocusScratchpad focusProject={focusProject} />
+
+            {isLocal ? (
+              <>
+                <FocusCard icon={GitBranch} title="Local Git State">
+                  <div className="text-muted-foreground mb-3 text-sm">
+                    Branch: <strong className="text-foreground">{data.repo?.branch || 'main'}</strong>
+                  </div>
+                  {data.localStatus && data.localStatus.length > 0 ? (
+                    <div className="bg-muted/50 max-h-48 overflow-auto rounded-lg border p-3 font-mono text-xs">
+                      {data.localStatus.map((s: string, i: number) => (
+                        <div key={i}>{s}</div>
                       ))}
                     </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">Working directory clean.</p>
+                  )}
+                </FocusCard>
+
+                <FocusCard icon={Bot} title="Bot Review Diagnostics">
+                  <p className="text-muted-foreground mb-3 text-sm">Run a local validation script to audit build health.</p>
+                  <Button className="w-full" onClick={runBotAudit} disabled={botRunning}>
+                    <Play /> {botRunning ? 'Running…' : 'Run Build Audit'}
+                  </Button>
+                  {botOutput && (
+                    <pre className="mt-3 max-h-52 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs break-words whitespace-pre-wrap text-sky-400">
+                      {botOutput}
+                    </pre>
+                  )}
+                </FocusCard>
+              </>
+            ) : (
+              <>
+                <FocusCard icon={Globe} title="Remote Repository Context">
+                  <p className="text-muted-foreground text-sm leading-snug">
+                    Remote GitHub repository. Local commands are disabled for web projects.
+                  </p>
+                  <Button asChild className="mt-3 w-full">
+                    <a href={`https://github.com/${data.repo.owner}/${data.repo.name}`} target="_blank" rel="noreferrer">
+                      View on GitHub <ExternalLink />
+                    </a>
+                  </Button>
+                </FocusCard>
+
+                <FocusCard icon={FolderTree} title="Remote File Explorer">
+                  <div className="mb-2.5 flex flex-wrap items-center gap-1 text-xs">
+                    <button type="button" className="text-primary font-semibold hover:underline" onClick={() => loadDir('')}>
+                      root
+                    </button>
+                    {breadcrumbParts.map((p, i) => (
+                      <span key={i} className="inline-flex items-center gap-1">
+                        <span className="text-muted-foreground">/</span>
+                        <button
+                          type="button"
+                          className="text-primary font-semibold hover:underline"
+                          onClick={() => loadDir(breadcrumbParts.slice(0, i + 1).join('/'))}
+                        >
+                          {p}
+                        </button>
+                      </span>
+                    ))}
                   </div>
-                </>
-              )}
-            </div>
+                  <ul className="bg-muted/30 flex max-h-64 flex-col gap-0.5 overflow-y-auto rounded-lg border p-2 text-sm">
+                    {explorerItems.map((item) => {
+                      const Icon: LucideIcon = item.type === 'dir' ? Folder : FileText;
+                      return (
+                        <li key={item.path}>
+                          <button
+                            type="button"
+                            className="hover:bg-muted flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left"
+                            onClick={() => (item.type === 'dir' ? loadDir(item.path) : loadFile(item.path))}
+                          >
+                            <Icon className={item.type === 'dir' ? 'text-primary size-4 shrink-0' : 'text-muted-foreground size-4 shrink-0'} />
+                            <span className="truncate">{item.name}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </FocusCard>
+              </>
+            )}
           </div>
-        );
-      })()}
-    </div>
+        </div>
+      )}
+    </section>
   );
 }

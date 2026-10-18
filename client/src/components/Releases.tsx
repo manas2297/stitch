@@ -1,24 +1,43 @@
-import { useState, useEffect } from 'react';
-import useAppStore, { apiFetch } from '../store/useAppStore';
+import { useEffect, useState } from 'react';
+import { Tag } from 'lucide-react';
 
-function escapeHtml(t = '') {
-  return t.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
-}
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { apiFetch } from '../store/useAppStore';
+import LoadingState, { ErrorMessage } from './layout/LoadingState';
+import PageHeader from './layout/PageHeader';
+import { useToast } from './Toast';
 
 export default function Releases() {
-  const repos = useAppStore((s) => s.repos);
+  const toast = useToast();
   const [releases, setReleases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null); // { path, owner, name, tag, notes }
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    setLoading(true);
+  const loadReleases = () =>
     apiFetch('/api/releases')
       .then((r) => r.json())
-      .then((d) => { setReleases(d.releases); setLoading(false); })
-      .catch((err) => { setError(err.message); setLoading(false); });
+      .then((d) => setReleases(d.releases || []));
+
+  useEffect(() => {
+    setLoading(true);
+    loadReleases()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleRelease = async (e) => {
@@ -28,91 +47,133 @@ export default function Releases() {
       const res = await apiFetch('/api/release/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: modal.path, owner: modal.owner, name: modal.name, tag: modal.tag, notes: modal.notes }),
+        body: JSON.stringify({
+          path: modal.path,
+          owner: modal.owner,
+          name: modal.name,
+          tag: modal.tag,
+          notes: modal.notes,
+        }),
       });
       const result = await res.json();
       if (res.ok) {
-        alert(result.message || 'Release tag created!');
+        toast(result.message || 'Release tag created!', 'success');
         setModal(null);
-        // reload
-        apiFetch('/api/releases').then((r) => r.json()).then((d) => setReleases(d.releases));
+        loadReleases();
       } else {
-        alert(`Error: ${result.error || 'Failed to create release'}`);
+        toast(`Error: ${result.error || 'Failed to create release'}`, 'error');
       }
     } catch {
-      alert('Error communicating with server.');
+      toast('Error communicating with server.', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="section-content active" id="releases-section">
-      <div className="section-header">
-        <div className="section-title">
-          <h2>Cut Releases</h2>
-          <div className="section-desc">Manage repository releases, view recent tag states, and check for unreleased changes.</div>
-        </div>
-      </div>
+    <section id="releases-section">
+      <PageHeader
+        title="Cut Releases"
+        description="Manage repository releases, view recent tag states, and check for unreleased changes."
+      />
 
-      <div className="card-grid">
-        {loading && <div className="loading-spinner"><div className="spinner"></div><span>Evaluating tag history…</span></div>}
-        {error && <div className="error-message">{error}</div>}
-        {!loading && releases.length === 0 && <div style={{ color: 'var(--text-muted)' }}>No repositories configured yet.</div>}
-        {releases.map((release, i) => {
-          const tagBadge = release.requiresRelease
-            ? <span className="badge badge-orange">Pending Tag</span>
-            : <span className="badge badge-green">Up to Date</span>;
-          return (
-            <div key={i} className="card">
-              <div className="card-header">
-                <div>
-                  <div className="card-title">{release.name}</div>
-                  <div className="card-meta">
-                    <span>Tag: <strong>{release.lastTag}</strong></span>
-                    <span>•</span>
-                    <span>Type: <strong>{release.type}</strong></span>
+      {loading && <LoadingState label="Evaluating tag history…" />}
+      {error && <ErrorMessage>{error}</ErrorMessage>}
+      {!loading && !error && releases.length === 0 && (
+        <p className="text-muted-foreground text-sm">No repositories configured yet.</p>
+      )}
+
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        {releases.map((release) => (
+          <Card key={release.path || `${release.owner}/${release.name}`}>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-lg font-bold">{release.name}</div>
+                  <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-2 text-xs">
+                    <span>
+                      Tag: <strong className="text-foreground">{release.lastTag}</strong>
+                    </span>
+                    <span aria-hidden>•</span>
+                    <span>
+                      Type: <strong className="text-foreground">{release.type}</strong>
+                    </span>
                   </div>
                 </div>
-                {tagBadge}
+                <Badge variant={release.requiresRelease ? 'orange' : 'green'} className="shrink-0">
+                  {release.requiresRelease ? 'Pending Tag' : 'Up to Date'}
+                </Badge>
               </div>
-              {release.commits.length > 0
-                ? <div className="commit-list">{release.commits.map((c, j) => <div key={j} className="commit-item">{escapeHtml(c)}</div>)}</div>
-                : <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>All commits are tagged and fully released.</div>}
+
+              {release.commits.length > 0 ? (
+                <ul className="bg-muted/50 max-h-40 space-y-1 overflow-y-auto rounded-lg p-3 font-mono text-xs">
+                  {release.commits.map((c, j) => (
+                    <li key={j} className="break-words">
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground text-sm">All commits are tagged and fully released.</p>
+              )}
+
               {release.requiresRelease && (
-                <div className="release-action">
-                  <button className="btn" onClick={() => setModal({ path: release.path, owner: release.owner, name: release.name, tag: '', notes: '' })}>
-                    🏷️ Cut Release
-                  </button>
+                <div>
+                  <Button
+                    onClick={() =>
+                      setModal({ path: release.path, owner: release.owner, name: release.name, tag: '', notes: '' })
+                    }
+                  >
+                    <Tag /> Cut Release
+                  </Button>
                 </div>
               )}
-            </div>
-          );
-        })}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Release Modal */}
-      {modal && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <h3>Create Release Tag</h3>
-            <form className="modal-form" onSubmit={handleRelease}>
-              <div>
-                <label>Tag Name (e.g. v1.0.0)</label>
-                <input type="text" placeholder="v1.0.0" required value={modal.tag} onChange={(e) => setModal({ ...modal, tag: e.target.value })} />
+      <Dialog open={!!modal} onOpenChange={(open) => !open && setModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Release Tag</DialogTitle>
+            <DialogDescription>Tags the latest commit of {modal?.name} and publishes the notes.</DialogDescription>
+          </DialogHeader>
+          {modal && (
+            <form className="grid gap-4" onSubmit={handleRelease}>
+              <div className="grid gap-2">
+                <Label htmlFor="release-tag">Tag Name (e.g. v1.0.0)</Label>
+                <Input
+                  id="release-tag"
+                  placeholder="v1.0.0"
+                  required
+                  value={modal.tag}
+                  onChange={(e) => setModal({ ...modal, tag: e.target.value })}
+                />
               </div>
-              <div>
-                <label>Release Notes</label>
-                <textarea rows={6} placeholder="Describe the changes..." required value={modal.notes} onChange={(e) => setModal({ ...modal, notes: e.target.value })} />
+              <div className="grid gap-2">
+                <Label htmlFor="release-notes">Release Notes</Label>
+                <Textarea
+                  id="release-notes"
+                  rows={6}
+                  placeholder="Describe the changes..."
+                  required
+                  value={modal.notes}
+                  onChange={(e) => setModal({ ...modal, notes: e.target.value })}
+                />
               </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-                <button type="submit" className="btn" disabled={submitting}>{submitting ? 'Publishing…' : 'Publish Release'}</button>
-              </div>
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setModal(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? 'Publishing…' : 'Publish Release'}
+                </Button>
+              </DialogFooter>
             </form>
-          </div>
-        </div>
-      )}
-    </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }

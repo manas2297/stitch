@@ -1,0 +1,89 @@
+/*
+ * Entry stylesheet: Tailwind v4 + shadcn/ui theme tokens.
+ * Components are styled with utilities; this file only holds design tokens,
+ * the page background, and third-party overrides (markdown preview, React Flow).
+ */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './markdown.css';
+@import './reactflow.css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.75rem;
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  /* shadcn "accent" is the subtle hover surface; the brand cyan is --brand-accent */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --brand-accent: #0284c7;
+  --destructive: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --border: rgba(226, 232, 240, 0.9);
+  --input: rgba(226, 232, 240, 0.9);
+  --ring: #2563eb;
+
+  /* Energy mode colors */
+  --energy-low: #0284c7;
+  --energy-medium: #d97706;
+  --energy-high: #e11d48;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  body {
+    @apply bg-background text-foreground min-h-screen overflow-x-hidden font-sans;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.04) 0%, transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+}
