@@ -1,0 +1,269 @@
+/*
+ * Rich notes editor (TipTap / ProseMirror). Uses the app's theme tokens so it
+ * follows light and dark mode; syntax colours are stepped separately per theme.
+ */
+:root {
+  --code-bg: #f6f8fa;
+  --code-fg: #24292f;
+  --code-comment: #6e7781;
+  --code-keyword: #cf222e;
+  --code-string: #0a3069;
+  --code-number: #0550ae;
+  --code-title: #8250df;
+  --code-attr: #953800;
+  --code-built-in: #116329;
+}
+
+.dark {
+  --code-bg: #0d1220;
+  --code-fg: #e2e8f0;
+  --code-comment: #8b949e;
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-number: #79c0ff;
+  --code-title: #d2a8ff;
+  --code-attr: #ffa657;
+  --code-built-in: #7ee787;
+}
+
+.notion-editor {
+  outline: none;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--foreground);
+  caret-color: var(--primary);
+}
+
+.notion-editor > * + * {
+  margin-top: 0.4em;
+}
+
+.notion-editor h1,
+.notion-editor h2,
+.notion-editor h3 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.notion-editor h1 {
+  font-size: 1.875rem;
+  margin-top: 1.4em;
+}
+.notion-editor h2 {
+  font-size: 1.4rem;
+  margin-top: 1.2em;
+}
+.notion-editor h3 {
+  font-size: 1.15rem;
+  margin-top: 1em;
+}
+.notion-editor > :first-child {
+  margin-top: 0;
+}
+
+.notion-editor a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.notion-editor ul,
+.notion-editor ol {
+  padding-left: 1.6em;
+}
+.notion-editor ul {
+  list-style: disc;
+}
+.notion-editor ol {
+  list-style: decimal;
+}
+.notion-editor li > p {
+  margin: 0.1em 0;
+}
+
+/* To-do lists */
+.notion-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.notion-editor ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+}
+.notion-editor ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 0.38em;
+  user-select: none;
+}
+.notion-editor ul[data-type='taskList'] li > label input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.notion-editor ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.notion-editor ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+.notion-editor blockquote {
+  border-left: 3px solid var(--foreground);
+  padding: 0.1em 0 0.1em 1em;
+  color: var(--foreground);
+  opacity: 0.85;
+}
+
+.notion-editor hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.4em 0;
+}
+
+.notion-editor mark {
+  background: color-mix(in oklab, var(--warning) 35%, transparent);
+  color: inherit;
+  border-radius: 0.2em;
+  padding: 0 0.1em;
+}
+
+.notion-editor code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background: var(--muted);
+  color: var(--destructive);
+  border-radius: 0.3em;
+  padding: 0.15em 0.35em;
+}
+
+/* Code blocks with lowlight (highlight.js class names) */
+.notion-editor pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.notion-editor pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+.notion-editor .hljs-comment,
+.notion-editor .hljs-quote {
+  color: var(--code-comment);
+  font-style: italic;
+}
+.notion-editor .hljs-keyword,
+.notion-editor .hljs-selector-tag,
+.notion-editor .hljs-meta .hljs-keyword,
+.notion-editor .hljs-doctag,
+.notion-editor .hljs-section {
+  color: var(--code-keyword);
+}
+.notion-editor .hljs-string,
+.notion-editor .hljs-regexp,
+.notion-editor .hljs-meta .hljs-string {
+  color: var(--code-string);
+}
+.notion-editor .hljs-number,
+.notion-editor .hljs-literal,
+.notion-editor .hljs-variable,
+.notion-editor .hljs-template-variable,
+.notion-editor .hljs-attr {
+  color: var(--code-number);
+}
+.notion-editor .hljs-title,
+.notion-editor .hljs-title.class_,
+.notion-editor .hljs-title.function_ {
+  color: var(--code-title);
+}
+.notion-editor .hljs-attribute,
+.notion-editor .hljs-name,
+.notion-editor .hljs-tag,
+.notion-editor .hljs-type,
+.notion-editor .hljs-params {
+  color: var(--code-attr);
+}
+.notion-editor .hljs-built_in,
+.notion-editor .hljs-symbol,
+.notion-editor .hljs-bullet,
+.notion-editor .hljs-addition {
+  color: var(--code-built-in);
+}
+.notion-editor .hljs-deletion {
+  color: var(--code-keyword);
+}
+
+/* Tables */
+.notion-editor .tableWrapper {
+  overflow-x: auto;
+  margin: 0.8em 0;
+}
+.notion-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  overflow: hidden;
+}
+.notion-editor th,
+.notion-editor td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.6em;
+  vertical-align: top;
+  position: relative;
+  min-width: 4em;
+}
+.notion-editor th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+.notion-editor td > p,
+.notion-editor th > p {
+  margin: 0;
+}
+.notion-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  pointer-events: none;
+}
+.notion-editor .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  pointer-events: none;
+}
+.notion-editor.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Placeholder hint; TipTap only marks the empty node under the cursor (showOnlyCurrent). */
+.notion-editor .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+.notion-editor .ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 0.3em;
+}
