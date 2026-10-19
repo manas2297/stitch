@@ -14,7 +14,7 @@ const badgeVariants = cva(
         green: 'bg-success/12 text-success',
         orange: 'bg-warning/12 text-warning',
         red: 'bg-destructive/12 text-destructive',
-        purple: 'bg-[rgba(124,58,237,0.1)] text-[#7c3aed]',
+        purple: 'bg-violet/12 text-violet',
       },
     },
     defaultVariants: { variant: 'default' },

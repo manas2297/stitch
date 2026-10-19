@@ -17,4 +17,10 @@ type Config struct {
 	Repos        []Repo            `json:"repos"`
 	FocusProject string            `json:"focusProject"`
 	TabEnergies  map[string]string `json:"tabEnergies,omitempty"`
+	Goals        *Goals            `json:"goals,omitempty"`
+}
+
+// Goals are the user's consistency targets shown on the Overview.
+type Goals struct {
+	ActiveDaysPerWeek int `json:"activeDaysPerWeek"`
 }

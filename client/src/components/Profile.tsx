@@ -33,13 +33,15 @@ const TAB_LABELS: Record<string, string> = {
   overview: 'Overview',
   repositories: 'Repositories',
   focus: 'Focus Area',
-  projects: 'Major Projects',
   releases: 'Cut Release',
   'pr-reviews': 'PR Reviews',
   issues: 'Issues',
   builds: 'Fix Builds',
   profile: 'Profile',
 };
+
+// Tabs that were removed but may still have a saved energy level in config.json
+const RETIRED_TABS = new Set(['projects']);
 
 /** Format a GitHub ISO date string to a friendly "Member since YYYY" label. */
 function memberSince(isoStr) {
@@ -294,7 +296,7 @@ export default function Profile() {
             </form>
 
             {profile?.git?.emailMismatch && (
-              <div role="alert" className="flex gap-3 rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-900">
+              <div role="alert" className="flex gap-3 rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                 <div>
                   <strong>Email mismatch detected.</strong> Your GitHub CLI email (<code>{gh.email}</code>) differs from
@@ -401,7 +403,9 @@ export default function Profile() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {Object.entries(localTabEnergies).map(([tabId, currentEnergy]) => (
+            {Object.entries(localTabEnergies)
+              .filter(([tabId]) => !RETIRED_TABS.has(tabId))
+              .map(([tabId, currentEnergy]) => (
               <div key={tabId} className="flex items-center justify-between gap-3 rounded-xl border p-3.5">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">

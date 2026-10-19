@@ -40,6 +40,92 @@
   --energy-low: #0284c7;
   --energy-medium: #d97706;
   --energy-high: #e11d48;
+
+  /* Secondary hue for "merged"/"feature" accents (badges, icons) */
+  --violet: #7c3aed;
+
+  /*
+   * Chart colours (components/overview/charts.tsx reads these via var()).
+   * Heat: single-hue sequential ramp, step 0 = empty cell.
+   * Series: categorical slots in fixed order; validated adjacent-pair CVD-safe.
+   */
+  --heat-0: var(--muted);
+  --heat-1: #9be9a8;
+  --heat-2: #40c463;
+  --heat-3: #30a14e;
+  --heat-4: #216e39;
+  --activity: #30a14e;
+  --activity-foreground: #ffffff;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-neutral: #a8a29e;
+
+  /* Page glow behind everything (see body) */
+  --glow-1: rgba(37, 99, 235, 0.04);
+  --glow-2: rgba(14, 165, 233, 0.05);
+  --glow-3: rgba(99, 102, 241, 0.03);
+
+  color-scheme: light;
+}
+
+/*
+ * Dark theme: deep navy surfaces stepped up in lightness (page < card < popover),
+ * hairline borders as translucent slate, and accents lifted one or two steps so
+ * they keep contrast on dark. Every token on :root has a dark value here.
+ * Contrast on --card (#121826): foreground 14.4:1, muted-foreground 6.9:1,
+ * primary 7.0:1, success 9.2:1, warning 10.6:1, destructive 6.4:1.
+ */
+.dark {
+  --background: #0b0f19;
+  --foreground: #e2e8f0;
+  --card: #121826;
+  --card-foreground: #e2e8f0;
+  --popover: #161d2d;
+  --popover-foreground: #e2e8f0;
+  --primary: #60a5fa;
+  --primary-foreground: #0b0f19;
+  --secondary: #1b2333;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1b2333;
+  --muted-foreground: #94a3b8;
+  --accent: #1f2939;
+  --accent-foreground: #f1f5f9;
+  --brand-accent: #38bdf8;
+  --destructive: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --border: rgba(148, 163, 184, 0.16);
+  --input: rgba(148, 163, 184, 0.22);
+  --ring: #60a5fa;
+
+  --energy-low: #38bdf8;
+  --energy-medium: #fbbf24;
+  --energy-high: #fb7185;
+
+  --violet: #a78bfa;
+
+  /* GitHub's dark greens, nudged up one step so step 1 clears 2:1 on our bluer card */
+  --heat-0: #212b3d;
+  --heat-1: #11592f;
+  --heat-2: #0a7a37;
+  --heat-3: #26a641;
+  --heat-4: #39d353;
+  --activity: #26a641;
+  --activity-foreground: #04210d;
+  /* Same hues stepped for the dark surface (dataviz reference dark column) */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-neutral: #78716c;
+
+  --glow-1: rgba(59, 130, 246, 0.1);
+  --glow-2: rgba(56, 189, 248, 0.06);
+  --glow-3: rgba(129, 140, 248, 0.07);
+
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -61,6 +147,10 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-violet: var(--violet);
+  --color-brand-accent: var(--brand-accent);
+  --color-activity: var(--activity);
+  --color-activity-foreground: var(--activity-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -80,9 +170,9 @@
   body {
     @apply bg-background text-foreground min-h-screen overflow-x-hidden font-sans;
     background-image:
-      radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.04) 0%, transparent 45%),
-      radial-gradient(circle at 85% 15%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
-      radial-gradient(circle at 50% 90%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
+      radial-gradient(circle at 15% 10%, var(--glow-1) 0%, transparent 45%),
+      radial-gradient(circle at 85% 15%, var(--glow-2) 0%, transparent 40%),
+      radial-gradient(circle at 50% 90%, var(--glow-3) 0%, transparent 50%);
     background-attachment: fixed;
   }
 }

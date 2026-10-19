@@ -117,7 +117,7 @@ export default function PomodoroTimer({ onSessionComplete }: PomodoroTimerProps)
 
         <div className="flex items-center justify-between text-sm">
           <span className="inline-flex items-center gap-1.5">
-            <Trophy className="size-3.5 text-amber-600" /> Sessions Completed:{' '}
+            <Trophy className="size-3.5 text-amber-600 dark:text-amber-400" /> Sessions Completed:{' '}
             <strong className="text-primary">{completedSessions}</strong>
           </span>
           <span className="text-muted-foreground text-xs">{timerMode === 'work' ? 'Stay Focused' : 'Take a Break'}</span>

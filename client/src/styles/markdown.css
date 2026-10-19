@@ -1,4 +1,15 @@
 /* Rendered markdown (helper/compileMarkdown output) */
+:root {
+  --md-code: #be123c;
+  --md-pre-bg: #0f172a;
+  --md-pre-fg: #e2e8f0;
+}
+.dark {
+  /* Code blocks sit darker than the card so they still read as "terminal" */
+  --md-code: #fda4af;
+  --md-pre-bg: #070a12;
+  --md-pre-fg: #e2e8f0;
+}
 .markdown-preview {
   color: var(--foreground);
   font-size: 0.95rem;
@@ -28,10 +39,10 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.85rem;
-  color: #be123c;
+  color: var(--md-code);
 }
 .markdown-preview .preview-pre {
-  background: #0f172a;
+  background: var(--md-pre-bg);
   border: 1px solid var(--border);
   padding: 1rem;
   border-radius: 8px;
@@ -40,7 +51,7 @@
   margin: 1rem 0;
 }
 .markdown-preview .preview-pre code {
-  color: #e2e8f0;
+  color: var(--md-pre-fg);
   font-size: 0.85rem;
 }
 .markdown-preview li {
