@@ -12,6 +12,7 @@ import (
 	"stitch/internal/server/focus"
 	"stitch/internal/server/ideas"
 	"stitch/internal/server/monitor"
+	"stitch/internal/server/planner"
 	"stitch/internal/server/plans"
 	"stitch/internal/server/profile"
 	"stitch/internal/server/projects"
@@ -45,6 +46,24 @@ func Routes() http.Handler {
 	// 3. Focus Area
 	mux.HandleFunc("GET /api/focus/info", focus.HandleFocusInfo)
 	mux.HandleFunc("GET /api/focus/contents", focus.HandleFocusContents)
+	mux.HandleFunc("GET /api/focus/fs/list", focus.HandleFSList)
+	mux.HandleFunc("GET /api/focus/fs/read", focus.HandleFSRead)
+	mux.HandleFunc("PUT /api/focus/fs/write", focus.HandleFSWrite)
+	mux.HandleFunc("GET /api/focus/fs/status", focus.HandleFSStatus)
+
+	// 3b. Focus planner: tasks, checklists, calendar, meetings, notes
+	mux.HandleFunc("GET /api/focus/board", planner.HandleGetBoard)
+	mux.HandleFunc("POST /api/focus/tasks", planner.HandleCreateTasks)
+	mux.HandleFunc("PATCH /api/focus/tasks/{id}", planner.HandleUpdateTask)
+	mux.HandleFunc("DELETE /api/focus/tasks/{id}", planner.HandleDeleteTask)
+	mux.HandleFunc("POST /api/focus/tasks/{id}/issue", planner.HandleCreateIssue)
+	mux.HandleFunc("POST /api/focus/meetings", planner.HandleCreateMeeting)
+	mux.HandleFunc("PATCH /api/focus/meetings/{id}", planner.HandleUpdateMeeting)
+	mux.HandleFunc("DELETE /api/focus/meetings/{id}", planner.HandleDeleteMeeting)
+	mux.HandleFunc("GET /api/focus/meetings/{id}/ics", planner.HandleMeetingICS)
+	mux.HandleFunc("POST /api/focus/pages", planner.HandleCreatePage)
+	mux.HandleFunc("PATCH /api/focus/pages/{id}", planner.HandleUpdatePage)
+	mux.HandleFunc("DELETE /api/focus/pages/{id}", planner.HandleDeletePage)
 	mux.HandleFunc("GET /api/ideas", ideas.HandleGetIdeasFiles)
 	mux.HandleFunc("GET /api/ideas/file", ideas.HandleGetIdeasFile)
 	mux.HandleFunc("POST /api/ideas/file", ideas.HandlePostIdeasFile)
@@ -119,7 +138,7 @@ func Routes() http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS, PUT")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 
 		if r.Method == "OPTIONS" {
