@@ -35,6 +35,19 @@ func (a *App) OpenURL(url string) {
 	runtime.BrowserOpenURL(a.ctx, url)
 }
 
+// PickFolder opens a native folder chooser and returns the chosen path, or "" if cancelled.
+func (a *App) PickFolder(title string) string {
+	home, _ := os.UserHomeDir()
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:            title,
+		DefaultDirectory: home,
+	})
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
 // ShowConfirmDialog prompts the user with a native Yes/No dialog.
 func (a *App) ShowConfirmDialog(title, message string) bool {
 	resp, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{

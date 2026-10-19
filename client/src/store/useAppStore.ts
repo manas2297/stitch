@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { isGitHubSlug } from '@/lib/focus';
+
 // Smart wrapper targeting the background server port in Desktop/Production modes
 export const apiFetch = (url, options = {}) => {
   const isDesktop = window.go !== undefined || import.meta.env.PROD;
@@ -25,11 +27,12 @@ const useAppStore = create<AppState>((set, get) => ({
   overviewRecents: null,
   overviewContributions: null,
   overviewLocalContributions: null,
+  overviewDelivery: null,
+  overviewGoals: { activeDaysPerWeek: 5 },
   tabEnergies: {
     overview: 'all',
     repositories: 'all',
     focus: 'high',
-    projects: 'medium',
     releases: 'medium',
     'pr-reviews': 'low',
     issues: 'low',
@@ -145,7 +148,8 @@ const useAppStore = create<AppState>((set, get) => ({
 
   setFocusProject: async (value) => {
     let params = { path: '', owner: '', name: '' };
-    if (value.includes('/')) {
+    // Local paths contain '/' too; only a bare owner/name slug is a GitHub repo.
+    if (isGitHubSlug(value)) {
       const [owner, name] = value.split('/');
       params.owner = owner;
       params.name = name;
@@ -177,7 +181,76 @@ const useAppStore = create<AppState>((set, get) => ({
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) set({ overviewLocalContributions: d }); });
 
-    await Promise.allSettled([p1, p2, p3]);
+    const p4 = apiFetch('/api/overview/delivery')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) set({ overviewDelivery: d }); });
+
+    const p5 = apiFetch('/api/overview/goals')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) set({ overviewGoals: d }); });
+
+    await Promise.allSettled([p1, p2, p3, p4, p5]);
+  },
+
+  // Repositories needs the local scan (and GitHub's 30-day counts) without the rest of the Overview.
+  loadRepoActivity: async () => {
+    const { overviewLocalContributions, overviewContributions } = get();
+    const jobs = [];
+    if (!overviewLocalContributions) {
+      jobs.push(apiFetch('/api/contributions/local')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) set({ overviewLocalContributions: d }); }));
+    }
+    if (!overviewContributions) {
+      jobs.push(apiFetch('/api/contributions')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) set({ overviewContributions: d }); }));
+    }
+    await Promise.allSettled(jobs);
+  },
+
+  // Add/remove many repos in one config write, then refresh everything derived from the list.
+  bulkRepos: async ({ add = [], remove = [] }) => {
+    const res = await apiFetch('/api/repos/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ add, remove }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    await get().loadRepos();
+    // Local insights only cover tracked repos, so rescan them.
+    set({ overviewLocalContributions: null });
+    get().loadRepoActivity();
+    return data;
+  },
+
+  openRepo: async (path, target) => {
+    const res = await apiFetch('/api/repos/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, target }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+  },
+
+  saveOverviewGoals: async (goals) => {
+    const previous = get().overviewGoals;
+    set({ overviewGoals: goals });
+    try {
+      const res = await apiFetch('/api/overview/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(goals),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.error('Failed to save goals:', err);
+      set({ overviewGoals: previous });
+    }
   },
 }));
 

@@ -204,7 +204,7 @@ export default function FocusWorkspace() {
           <div className="flex min-w-0 flex-col gap-6">
             <FocusCard
               icon={Lightbulb}
-              iconClassName="text-amber-600"
+              iconClassName="text-amber-600 dark:text-amber-400"
               title="Features to Work On"
               badge={features.length > 0 && <Badge variant="orange">{features.length}</Badge>}
             >

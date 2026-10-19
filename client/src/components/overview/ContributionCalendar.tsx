@@ -1,137 +1,182 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Flame, GitCommit, GitGraph, Trophy } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { computeMonthLabels, computeStreaks, type ContributionWeek } from '@/lib/contributions';
+import {
+  formatDay,
+  heatLevel,
+  heatmapColumns,
+  RANGES,
+  trendBuckets,
+  type DayPoint,
+  type RangeKey,
+  type RangeStats,
+} from '@/lib/contributions';
 import { cn } from '@/lib/utils';
-
-const LEGEND = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'];
-
-interface Graph {
-  weeks?: ContributionWeek[];
-  total?: number;
-  username?: string;
-}
+import { ACTIVITY, ChartTooltip, ColumnChart, HEAT } from './charts';
 
 export type GraphKind = 'github' | 'local';
 
-export default function ContributionCalendar({
-  graph,
-  loading,
-  kind,
-  onKindChange,
-}: {
-  graph?: Graph | null;
-  loading: boolean;
-  kind: GraphKind;
-  onKindChange: (kind: GraphKind) => void;
-}) {
-  const streaks = useMemo(() => computeStreaks(graph?.weeks), [graph]);
-  const monthLabels = useMemo(() => computeMonthLabels(graph?.weeks), [graph]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+const CELL: Record<RangeKey, number> = { '30': 22, '90': 15, '365': 14 };
+const GAP = 3;
 
-  // Show the most recent weeks first on narrow screens
+function Heatmap({ stats, range, noun }: { stats: RangeStats; range: RangeKey; noun: string }) {
+  const cols = useMemo(() => heatmapColumns(stats), [stats]);
+  const max = Math.max(0, ...stats.days.map((d) => d.count));
+  const size = CELL[range];
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [tip, setTip] = useState<{ day: DayPoint; x: number; y: number } | null>(null);
+
+  // Most recent weeks first on narrow screens
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-  }, [graph, loading]);
+  }, [cols]);
 
+  const monthLabels = useMemo(() => {
+    let last = '';
+    return cols.map((col) => {
+      const first = col.find(Boolean);
+      const m = first ? formatDay(first.date, { month: 'short' }) : '';
+      if (m && m !== last) {
+        last = m;
+        return m;
+      }
+      return '';
+    });
+  }, [cols]);
+
+  const showTip = (day: DayPoint, el: HTMLElement) => {
+    const wrap = wrapRef.current?.getBoundingClientRect();
+    const cell = el.getBoundingClientRect();
+    if (wrap) setTip({ day, x: cell.left - wrap.left + cell.width / 2, y: cell.top - wrap.top - 4 });
+  };
+
+  return (
+    <div ref={wrapRef} className="relative min-w-0">
+      <div ref={scrollRef} className="overflow-x-auto pb-1" onMouseLeave={() => setTip(null)}>
+        <div className="flex w-max gap-2">
+          <div
+            className="text-muted-foreground grid pr-0.5 text-right text-[0.62rem]"
+            style={{ gridTemplateRows: `repeat(7, ${size}px)`, gap: GAP, paddingTop: 16, lineHeight: `${size}px` }}
+          >
+            {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((d, i) => (
+              <span key={i}>{d}</span>
+            ))}
+          </div>
+          <div>
+            <div className="mb-1 flex h-3" style={{ gap: GAP }}>
+              {monthLabels.map((label, i) => (
+                <div key={i} className="text-muted-foreground shrink-0 overflow-visible text-[0.62rem] whitespace-nowrap" style={{ width: size }}>
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className="flex" style={{ gap: GAP }}>
+              {cols.map((col, c) => (
+                <div key={c} className="grid" style={{ gridTemplateRows: `repeat(7, ${size}px)`, gap: GAP }}>
+                  {col.map((day, r) =>
+                    day ? (
+                      <div
+                        key={r}
+                        onMouseEnter={(e) => showTip(day, e.currentTarget)}
+                        className={cn(
+                          'rounded-[3px] transition-transform hover:scale-110',
+                          day.date === stats.end && 'ring-foreground/40 ring-offset-card ring-1 ring-offset-1',
+                        )}
+                        style={{ width: size, height: size, backgroundColor: HEAT[heatLevel(day.count, max)] }}
+                      />
+                    ) : (
+                      <div key={r} style={{ width: size, height: size }} />
+                    ),
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      {tip && (
+        <ChartTooltip style={{ left: tip.x, top: tip.y }}>
+          <span className="font-semibold tabular-nums">{tip.day.count}</span> {noun} ·{' '}
+          {formatDay(tip.day.date, { weekday: 'short', month: 'short', day: 'numeric' })}
+        </ChartTooltip>
+      )}
+      <div className="text-muted-foreground mt-2 flex items-center gap-1 text-[0.62rem]">
+        Less
+        {HEAT.map((c) => (
+          <span key={c} className="size-2.5 rounded-[2px]" style={{ backgroundColor: c }} />
+        ))}
+        More
+      </div>
+    </div>
+  );
+}
+
+export default function ContributionCalendar({
+  stats,
+  loading,
+  kind,
+  range,
+  username,
+}: {
+  stats: RangeStats | null;
+  loading: boolean;
+  kind: GraphKind;
+  range: RangeKey;
+  username?: string;
+}) {
   const noun = kind === 'github' ? 'contributions' : 'commits';
+  const buckets = useMemo(() => (stats ? trendBuckets(stats, range) : []), [stats, range]);
+  const wide = range === '365';
+  const peak = buckets.reduce((best, b, i) => (b.count > (buckets[best]?.count ?? -1) ? i : best), -1);
 
   return (
     <Card className="mb-6">
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <h3 className="text-muted-foreground flex items-center gap-1.5 text-sm font-bold tracking-wider uppercase">
-              <Flame className="size-4 text-amber-500" /> Consistency &amp; Activity
-            </h3>
-            <div className="bg-muted/60 flex gap-1 rounded-lg border p-0.5">
-              <Button size="xs" variant={kind === 'github' ? 'default' : 'ghost'} onClick={() => onKindChange('github')}>
-                <GitGraph /> GitHub Graph
-              </Button>
-              <Button size="xs" variant={kind === 'local' ? 'default' : 'ghost'} onClick={() => onKindChange('local')}>
-                <GitCommit /> Local Commits
-              </Button>
-            </div>
-            {!loading && graph?.weeks && (
-              <div className="flex gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full border border-orange-300/50 bg-orange-100/60 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap text-orange-600">
-                  <Flame className="size-3" /> {streaks.current}d streak
-                </span>
-                <span className="text-muted-foreground inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
-                  <Trophy className="size-3" /> {streaks.longest}d best
-                </span>
-              </div>
-            )}
-          </div>
-          {!loading && graph && (
-            <span className="text-muted-foreground text-sm">
-              {kind === 'github' ? (
-                <>
-                  <strong className="text-foreground">{graph.total}</strong> contributions ·{' '}
-                  <strong className="text-foreground">@{graph.username}</strong>
-                </>
-              ) : (
-                <>
-                  <strong className="text-foreground">{graph.total}</strong> local commits this year
-                </>
-              )}
-            </span>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarDays className="size-4" /> Contribution activity
+        </CardTitle>
+        <CardDescription>
+          {loading || !stats ? (
+            'Loading activity…'
+          ) : (
+            <>
+              <strong className="text-foreground tabular-nums">{stats.total}</strong> {noun} in the {RANGES[range].long}
+              {kind === 'github' && username && <> · @{username}</>}
+              {kind === 'local' && <> · across your local repos</>}
+            </>
           )}
-        </div>
-
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
         {loading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : graph?.weeks ? (
-          <>
-            <div ref={scrollRef} className="overflow-x-auto pb-1">
-              <div className="flex w-max gap-2 text-xs">
-                <div className="text-muted-foreground grid grid-rows-[repeat(7,10px)] gap-[3px] pt-[15px] pr-1 text-right text-[0.65rem] leading-[10px]">
-                  <span /> <span>Mon</span> <span /> <span>Wed</span> <span /> <span>Fri</span> <span />
-                </div>
-                <div className="flex flex-col">
-                  <div className="mb-[3px] flex gap-[3px]">
-                    {monthLabels.map((label, i) => (
-                      <div key={i} className="text-muted-foreground h-3 w-2.5 shrink-0 overflow-visible text-[0.6rem] whitespace-nowrap">
-                        {label}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-[3px]">
-                    {graph.weeks.map((week, w) => (
-                      <div key={w} className="grid grid-rows-[repeat(7,10px)] gap-[3px]">
-                        {week.contributionDays.map((day, d) => (
-                          <div
-                            key={d}
-                            className="size-2.5 rounded-[2px] transition-transform hover:scale-125"
-                            style={{ backgroundColor: day.color || LEGEND[0] }}
-                            title={`${day.contributionCount} ${noun} on ${new Date(day.date).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}`}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className={cn('text-muted-foreground flex items-center justify-end gap-1 text-[0.62rem]')}>
-              Less
-              {LEGEND.map((c) => (
-                <span key={c} className="size-2.5 rounded-[2px]" style={{ backgroundColor: c }} />
-              ))}
-              More
-            </div>
-          </>
-        ) : (
+          <Skeleton className="h-36 w-full" />
+        ) : !stats ? (
           <p className="text-muted-foreground py-2 text-sm">
-            Contribution graph unavailable. Ensure your git config is set or GitHub CLI is authenticated.
+            Contribution data unavailable. Ensure your git config is set or GitHub CLI is authenticated.
           </p>
+        ) : (
+          <div className={cn('grid gap-6', !wide && 'lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-10')}>
+            <Heatmap stats={stats} range={range} noun={noun} />
+            <div className="min-w-0">
+              <div className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+                {range === '30' ? 'Daily' : 'Weekly'} {noun}
+              </div>
+              <ColumnChart
+                data={buckets}
+                color={ACTIVITY}
+                noun={noun}
+                height={wide ? 72 : 120}
+                labelEvery={range === '30' ? 5 : range === '90' ? 2 : 8}
+                highlight={peak >= 0 && buckets[peak].count > 0 ? peak : undefined}
+                ariaLabel={`${range === '30' ? 'Daily' : 'Weekly'} ${noun} over the ${RANGES[range].long}; peak ${
+                  peak >= 0 ? `${buckets[peak].count} on ${buckets[peak].detail}` : 'none'
+                }`}
+              />
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

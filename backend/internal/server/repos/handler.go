@@ -92,7 +92,6 @@ func HandleGetRepos(w http.ResponseWriter, r *http.Request) {
 			"overview":     "all",
 			"repositories": "all",
 			"focus":        "high",
-			"projects":     "medium",
 			"releases":     "medium",
 			"pr-reviews":   "low",
 			"issues":       "low",
@@ -140,76 +139,10 @@ func HandlePostRepos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := config.Read()
-	var repoData models.Repo
-
-	isWebFormat := strings.Contains(body.Path, "/") &&
-		!strings.HasPrefix(body.Path, "/") &&
-		!strings.Contains(body.Path, "\\") &&
-		!strings.Contains(body.Path, ":")
-
-	if isWebFormat {
-		parts := strings.Split(body.Path, "/")
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			helpers.WriteJSONError(w, "Invalid web repository format. Use owner/name", http.StatusBadRequest)
-			return
-		}
-		wOwner, wName := parts[0], parts[1]
-
-		existingIndex := -1
-		for idx, r := range cfg.Repos {
-			if r.Path == "" && strings.EqualFold(r.Owner, wOwner) && strings.EqualFold(r.Name, wName) {
-				existingIndex = idx
-				break
-			}
-		}
-
-		repoData = models.Repo{
-			Name:           wName,
-			Owner:          wOwner,
-			Path:           "",
-			IsMajorProject: body.IsMajorProject,
-		}
-
-		if existingIndex > -1 {
-			cfg.Repos[existingIndex] = repoData
-		} else {
-			cfg.Repos = append(cfg.Repos, repoData)
-		}
-	} else {
-		absPath, _ := filepath.Abs(body.Path)
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			helpers.WriteJSONError(w, fmt.Sprintf("Path does not exist: %s", absPath), http.StatusBadRequest)
-			return
-		}
-
-		existingIndex := -1
-		for idx, r := range cfg.Repos {
-			if r.Path != "" {
-				rAbs, _ := filepath.Abs(r.Path)
-				if strings.EqualFold(rAbs, absPath) {
-					existingIndex = idx
-					break
-				}
-			}
-		}
-
-		dOwner, dName := body.Owner, body.Name
-		if dOwner == "" || dName == "" {
-			dOwner, dName = shell.GetRepoInfoFromGit(absPath)
-		}
-
-		repoData = models.Repo{
-			Name:           dName,
-			Owner:          dOwner,
-			Path:           absPath,
-			IsMajorProject: body.IsMajorProject,
-		}
-
-		if existingIndex > -1 {
-			cfg.Repos[existingIndex] = repoData
-		} else {
-			cfg.Repos = append(cfg.Repos, repoData)
-		}
+	repoData, err := addRepoToConfig(&cfg, body.Path, body.Owner, body.Name, body.IsMajorProject)
+	if err != nil {
+		helpers.WriteJSONError(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if config.Write(cfg) {
@@ -231,44 +164,13 @@ func HandleDeleteRepos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := config.Read()
-	filtered := []models.Repo{}
-	found := false
-
-	if body.Path != "" {
-		absBodyPath, _ := filepath.Abs(body.Path)
-		for _, r := range cfg.Repos {
-			if r.Path != "" {
-				rAbs, _ := filepath.Abs(r.Path)
-				if strings.EqualFold(rAbs, absBodyPath) {
-					found = true
-					continue
-				}
-			}
-			filtered = append(filtered, r)
-		}
-		fAbs, _ := filepath.Abs(cfg.FocusProject)
-		if cfg.FocusProject != "" && strings.EqualFold(fAbs, absBodyPath) {
-			cfg.FocusProject = ""
-		}
-	} else if body.Owner != "" && body.Name != "" {
-		for _, r := range cfg.Repos {
-			if r.Path == "" && strings.EqualFold(r.Owner, body.Owner) && strings.EqualFold(r.Name, body.Name) {
-				found = true
-				continue
-			}
-			filtered = append(filtered, r)
-		}
-		if cfg.FocusProject == fmt.Sprintf("%s/%s", body.Owner, body.Name) {
-			cfg.FocusProject = ""
-		}
-	}
+	found := removeRepoFromConfig(&cfg, body.Path, body.Owner, body.Name)
 
 	if !found {
 		helpers.WriteJSONError(w, "Repository not found in config.", http.StatusNotFound)
 		return
 	}
 
-	cfg.Repos = filtered
 	if config.Write(cfg) {
 		helpers.WriteJSONResponse(w, map[string]interface{}{"success": true})
 	} else {

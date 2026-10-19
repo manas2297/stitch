@@ -29,6 +29,11 @@ func Routes() http.Handler {
 	mux.HandleFunc("DELETE /api/repos", repos.HandleDeleteRepos)
 	mux.HandleFunc("POST /api/repos/toggle-major", repos.HandleToggleMajor)
 	mux.HandleFunc("POST /api/repos/set-focus", repos.HandleSetFocus)
+	mux.HandleFunc("POST /api/repos/open", repos.HandleOpenRepo)
+	mux.HandleFunc("POST /api/repos/bulk", repos.HandleBulkRepos)
+	mux.HandleFunc("GET /api/repos/discover", repos.HandleDiscover)
+	mux.HandleFunc("GET /api/repos/discover/roots", repos.HandleDiscoverRoots)
+	mux.HandleFunc("GET /api/repos/github", repos.HandleGitHubRepos)
 
 	// 2. Details, Roadmap, Releases
 	mux.HandleFunc("GET /api/projects/details", projects.HandleProjectDetails)
@@ -61,6 +66,9 @@ func Routes() http.Handler {
 	// 6. Contributions (GitHub and Local Commits)
 	mux.HandleFunc("GET /api/contributions", contributions.HandleGetGitHubContributions)
 	mux.HandleFunc("GET /api/contributions/local", contributions.HandleGetLocalContributions)
+	mux.HandleFunc("GET /api/overview/delivery", contributions.HandleGetDelivery)
+	mux.HandleFunc("GET /api/overview/goals", contributions.HandleGetGoals)
+	mux.HandleFunc("POST /api/overview/goals", contributions.HandlePostGoals)
 
 	// 7. Profile & Settings
 	mux.HandleFunc("GET /api/profile", profile.HandleGetProfile)

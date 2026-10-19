@@ -15,13 +15,13 @@ import type { OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/ty
 import '@excalidraw/excalidraw/index.css';
 import { Check, CloudOff, Download, FileUp, Loader2 } from 'lucide-react';
 
+import { useTheme } from '@/lib/theme';
 import { loadLibrary, saveDrawing, saveLibrary } from './api';
 import { downloadSceneFile, toLibraryFile, toSceneFile } from './stitchdraw';
 
 // Fonts are served by the app itself (see vite.config.mjs) so drawing works offline.
 (window as any).EXCALIDRAW_ASSET_PATH = new URL('/', window.location.href).href;
 
-const THEME_KEY = 'stitch.draw.theme';
 const SAVE_DELAY = 800;
 
 export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
@@ -35,14 +35,6 @@ const libraryAdapter = {
     await saveLibrary(toLibraryFile(serializeLibraryAsJSON(libraryItems)));
   },
 };
-
-function readTheme(): 'light' | 'dark' {
-  try {
-    return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
-}
 
 function StatusPill({ status }: { status: SaveStatus }) {
   const map = {
@@ -92,7 +84,9 @@ export default function StitchDrawBoard({
   const latest = useRef<{ elements: readonly OrderedExcalidrawElement[]; appState: AppState; files: BinaryFiles } | null>(null);
   const lastSaved = useRef<string | null>(null);
   const contentKey = useRef<string | null>(null);
-  const theme = useRef(readTheme());
+  // The whiteboard follows the app theme (top bar switcher); it has no theme toggle of its own.
+  const { resolved: theme } = useTheme();
+  const initialTheme = useRef(theme);
 
   useHandleLibrary({ excalidrawAPI: api, adapter: libraryAdapter });
 
@@ -101,7 +95,7 @@ export default function StitchDrawBoard({
     return {
       elements: restored.elements,
       files: restored.files,
-      appState: { ...restored.appState, theme: theme.current },
+      appState: { ...restored.appState, theme: initialTheme.current },
       scrollToContent: true,
     };
   }, [scene]);
@@ -141,14 +135,6 @@ export default function StitchDrawBoard({
   );
 
   const handleChange = (elements: readonly OrderedExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
-    if (appState.theme !== theme.current) {
-      theme.current = appState.theme;
-      try {
-        localStorage.setItem(THEME_KEY, appState.theme);
-      } catch {
-        /* per-viewer convenience only */
-      }
-    }
     latest.current = { elements, appState, files };
     // onChange also fires for selection, scrolling and layout; only content changes schedule a save.
     const key = [
@@ -204,6 +190,7 @@ export default function StitchDrawBoard({
         initialData={initialData}
         onChange={handleChange}
         name={name}
+        theme={theme}
         autoFocus
         UIOptions={{ canvasActions: { saveToActiveFile: false, loadScene: false, export: false, saveAsImage: true } }}
         renderTopRightUI={() => <StatusPill status={status} />}
@@ -220,7 +207,6 @@ export default function StitchDrawBoard({
           <MainMenu.DefaultItems.Help />
           <MainMenu.DefaultItems.ClearCanvas />
           <MainMenu.Separator />
-          <MainMenu.DefaultItems.ToggleTheme />
           <MainMenu.DefaultItems.ChangeCanvasBackground />
         </MainMenu>
         <WelcomeScreen>

@@ -14,12 +14,12 @@ export interface StatCardProps {
 }
 
 const accent: Record<NonNullable<StatCardProps['variant']>, string> = {
-  purple: 'from-[#7c3aed] to-[#a78bfa]',
-  blue: 'from-[#2563eb] to-[#60a5fa]',
-  green: 'from-[#059669] to-[#6ee7b7]',
-  orange: 'from-[#d97706] to-[#fcd34d]',
-  teal: 'from-[#0d9488] to-[#5eead4]',
-  pink: 'from-[#be185d] to-[#f9a8d4]',
+  purple: 'from-[#7c3aed] to-[#a78bfa] dark:from-[#8b5cf6] dark:to-[#c4b5fd]',
+  blue: 'from-[#2563eb] to-[#60a5fa] dark:from-[#3b82f6] dark:to-[#93c5fd]',
+  green: 'from-[#059669] to-[#6ee7b7] dark:from-[#10b981] dark:to-[#a7f3d0]',
+  orange: 'from-[#d97706] to-[#fcd34d] dark:from-[#f59e0b] dark:to-[#fde68a]',
+  teal: 'from-[#0d9488] to-[#5eead4] dark:from-[#14b8a6] dark:to-[#99f6e4]',
+  pink: 'from-[#be185d] to-[#f9a8d4] dark:from-[#ec4899] dark:to-[#fbcfe8]',
 };
 
 export function StatCard({
