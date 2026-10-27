@@ -4,6 +4,9 @@ node_modules/
 # User-specific config (contains local paths and personal repo list)
 config.json
 
+# Focus planner data (tasks, meetings, notes)
+focus.json*
+
 # Vite production build output (embedded by Go via //go:embed)
 dist/
 
