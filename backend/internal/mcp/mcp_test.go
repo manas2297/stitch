@@ -218,8 +218,31 @@ func TestCreateDiagram(t *testing.T) {
 	if out, isErr := callTool(t, "create_diagram", map[string]any{"name": "System", "mermaid": src}); !isErr || !strings.Contains(out, "already exists") {
 		t.Errorf("duplicate name should fail, got %s", out)
 	}
-	mustCall(t, "create_diagram", map[string]any{"repo": "acme/web", "name": "Web", "mermaid": src}, nil)
-	if _, err := os.Stat(filepath.Join(config.DataDir(), "diagrams", "acme-web", "Web.stitchdraw")); err != nil {
-		t.Error(fmt.Errorf("remote-only repo drawing: %w", err))
+	elements := []map[string]any{
+		{"type": "rectangle", "id": "api", "x": 0, "y": 0, "width": 180, "height": 80, "label": map[string]any{"text": "API"}},
+		{"type": "rectangle", "id": "db", "x": 300, "y": 0, "width": 180, "height": 80, "backgroundColor": "#ffc9c9", "fillStyle": "solid"},
+		{"type": "arrow", "x": 180, "y": 40, "start": map[string]any{"id": "api"}, "end": map[string]any{"id": "db"}},
+	}
+	mustCall(t, "create_diagram", map[string]any{"repo": "acme/web", "name": "Web", "elements": elements}, nil)
+	data, err = os.ReadFile(filepath.Join(config.DataDir(), "diagrams", "acme-web", "Web.stitchdraw"))
+	if err != nil {
+		t.Fatal(fmt.Errorf("remote-only repo drawing: %w", err))
+	}
+	var skel struct {
+		Skeleton []map[string]any `json:"skeleton"`
+		Mermaid  *string          `json:"mermaid"`
+	}
+	if json.Unmarshal(data, &skel); len(skel.Skeleton) != 3 || skel.Skeleton[1]["backgroundColor"] != "#ffc9c9" || skel.Mermaid != nil {
+		t.Errorf("skeleton scene = %s", data)
+	}
+
+	for _, args := range []map[string]any{
+		{"name": "Neither"},
+		{"name": "Both", "mermaid": src, "elements": elements},
+		{"name": "Bad", "elements": []map[string]any{{"type": "hexagon", "x": 0, "y": 0}}},
+	} {
+		if out, isErr := callTool(t, "create_diagram", args); !isErr {
+			t.Errorf("%v should fail, got %s", args["name"], out)
+		}
 	}
 }

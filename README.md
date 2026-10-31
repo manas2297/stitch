@@ -193,7 +193,7 @@ The built binary doubles as an MCP server: `Stitch mcp` serves tools over stdio 
 | `list_repos` | List tracked repositories |
 | `list_tasks`, `create_tasks`, `update_task` | Read and edit the Focus planner board |
 | `create_page` | Add a notes page (HTML or plain text) |
-| `create_diagram` | Add an Architecture drawing from Mermaid source; it becomes editable shapes when first opened |
+| `create_diagram` | Add an Architecture drawing from laid-out shapes and arrows (or Mermaid as a fallback); it becomes editable shapes when first opened |
 
 Tools that take an optional `repo` (`owner/name` or local path) default to the focus project.
 

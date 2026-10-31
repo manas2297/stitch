@@ -125,26 +125,31 @@ export default function StitchDrawBoard({
   const persistRef = useRef(persist);
   persistRef.current = persist;
 
-  // A drawing created over MCP holds Mermaid source and no elements. Convert it once and save
-  // straight away; the saved scene has no "mermaid" field, so it is never converted again.
+  // A drawing created over MCP holds element skeletons or Mermaid source and no elements. Convert it
+  // once and save straight away; the saved scene drops those fields, so it is never converted again.
   const toast = useToast();
   useEffect(() => {
-    const source = scene?.mermaid;
-    if (!api || typeof source !== 'string' || scene.elements?.length) return;
+    const skeleton = Array.isArray(scene?.skeleton) ? scene.skeleton : null;
+    const source = typeof scene?.mermaid === 'string' ? scene.mermaid : null;
+    if (!api || (!skeleton && !source) || scene.elements?.length) return;
     let cancelled = false;
     (async () => {
       try {
-        // Mermaid is large; load it only for drawings that need converting.
-        const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
-        const { elements, files } = await parseMermaidToExcalidraw(source);
-        if (cancelled) return;
-        if (files) api.addFiles(Object.values(files));
+        let elements = skeleton;
+        if (!elements) {
+          // Mermaid is large; load it only for drawings that need converting.
+          const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
+          const parsed = await parseMermaidToExcalidraw(source);
+          if (cancelled) return;
+          if (parsed.files) api.addFiles(Object.values(parsed.files));
+          elements = parsed.elements;
+        }
         api.updateScene({ elements: convertToExcalidrawElements(elements) });
         api.scrollToContent(undefined, { fitToContent: true });
         latest.current = { elements: api.getSceneElements(), appState: api.getAppState(), files: api.getFiles() };
         await persistRef.current();
       } catch (e) {
-        if (!cancelled) toast(`Could not convert the Mermaid diagram: ${e.message}`, 'error');
+        if (!cancelled) toast(`Could not build the drawing: ${e.message}`, 'error');
       }
     })();
     return () => {

@@ -141,6 +141,38 @@ func taskFields() map[string]*jsonschema.Schema {
 	}
 }
 
+// skeletonSchema describes the element skeletons the client passes to Excalidraw's convertToExcalidrawElements.
+func skeletonSchema() *jsonschema.Schema {
+	num := func(desc string) *jsonschema.Schema { return &jsonschema.Schema{Type: "number", Description: desc} }
+	ref := func() *jsonschema.Schema {
+		return object(map[string]*jsonschema.Schema{"id": str("id of the shape to bind to.")}, "id")
+	}
+	arrowheads := []string{"arrow", "triangle", "dot", "bar"}
+	return object(map[string]*jsonschema.Schema{
+		"type":            enum("Element kind.", []string{"rectangle", "ellipse", "diamond", "text", "arrow", "line", "frame"}),
+		"id":              str("Unique id, referenced by arrow start/end and frame children."),
+		"x":               num("Left edge in px (frames wrap their children and need no position)."),
+		"y":               num("Top edge in px."),
+		"width":           num("Width in px; for arrows and lines, the horizontal extent."),
+		"height":          num("Height in px."),
+		"label":           object(map[string]*jsonschema.Schema{"text": str("Text centered in the shape or on the arrow."), "fontSize": num("Font size, default 20.")}, "text"),
+		"text":            str("Content of a text element."),
+		"fontSize":        num("Font size of a text element."),
+		"strokeColor":     str("Outline and text color as hex, default #1e1e1e."),
+		"backgroundColor": str("Fill color as hex."),
+		"fillStyle":       enum("Fill pattern.", []string{"solid", "hachure", "cross-hatch"}),
+		"strokeWidth":     num("Outline width: 1, 2 or 4."),
+		"strokeStyle":     enum("Outline style.", []string{"solid", "dashed", "dotted"}),
+		"roundness":       object(map[string]*jsonschema.Schema{"type": {Type: "integer", Description: "3 for rounded corners."}}),
+		"start":           ref(),
+		"end":             ref(),
+		"startArrowhead":  enum("Arrowhead at the start of an arrow.", arrowheads),
+		"endArrowhead":    enum("Arrowhead at the end of an arrow.", arrowheads),
+		"children":        {Type: "array", Items: str("Shape id."), Description: "Ids of the shapes inside a frame."},
+		"name":            str("Frame title."),
+	}, "type")
+}
+
 type repoArg struct {
 	Repo string `json:"repo"`
 }
@@ -286,17 +318,30 @@ func NewServer() *mcp.Server {
 	})
 
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "create_diagram",
-		Description: "Create an architecture diagram from Mermaid source (flowchart, sequence or class diagram). It is saved as a .stitchdraw drawing (in docs/diagrams for local repos) and converted into editable shapes the next time it is opened in Stitch's Architecture tab.",
+		Name: "create_diagram",
+		Description: "Create an architecture drawing in Stitch's Architecture tab, saved as a .stitchdraw file (in docs/diagrams for local repos). " +
+			"Prefer elements: you lay out the shapes yourself and they open as editable, styled shapes. " +
+			"Layout tips: boxes about 180x80 on a grid with 80-120px gaps, flowing left-to-right or top-to-bottom; " +
+			"give every shape an id and connect shapes with arrows whose start/end reference those ids (the arrow's x/y only needs to be near its source); " +
+			"color-code layers with backgroundColor and fillStyle solid (e.g. #a5d8ff clients, #b2f2bb services, #ffec99 queues, #ffc9c9 data stores, #d0bfff external systems); " +
+			"use diamonds for decisions, ellipses for actors, a frame (children = ids) to group a subsystem, and text elements for a title or notes. " +
+			"mermaid is a plainer, auto-laid-out fallback. Pass exactly one of elements or mermaid.",
 		InputSchema: object(map[string]*jsonschema.Schema{
-			"repo":    repoProp,
-			"name":    str("Drawing name: letters, numbers, spaces, . _ - ( ), up to 100 characters. Must not already exist."),
-			"mermaid": str("Mermaid diagram source, e.g. \"flowchart LR\\n  A[Client] --> B[API]\"."),
-		}, "name", "mermaid"),
+			"repo": repoProp,
+			"name": str("Drawing name: letters, numbers, spaces, . _ - ( ), up to 100 characters. Must not already exist."),
+			"elements": {
+				Type:        "array",
+				Description: "Excalidraw element skeletons. Other Excalidraw element properties (opacity, roughness, fontFamily, ...) are passed through.",
+				MinItems:    ptr(1),
+				Items:       skeletonSchema(),
+			},
+			"mermaid": str("Mermaid source (flowchart, sequence or class diagram), e.g. \"flowchart LR\\n  A[Client] --> B[API]\". Only when not passing elements."),
+		}, "name"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in struct {
-		Repo    string `json:"repo"`
-		Name    string `json:"name"`
-		Mermaid string `json:"mermaid"`
+		Repo     string            `json:"repo"`
+		Name     string            `json:"name"`
+		Elements []json.RawMessage `json:"elements"`
+		Mermaid  string            `json:"mermaid"`
 	}) (*mcp.CallToolResult, any, error) {
 		r, err := resolveRepo(in.Repo)
 		if err != nil {
@@ -305,10 +350,11 @@ func NewServer() *mcp.Server {
 		if r.Owner == "" || r.Name == "" {
 			return nil, nil, fmt.Errorf("repo %q has no GitHub owner/name, which diagrams are filed under", projectKey(r))
 		}
-		if strings.TrimSpace(in.Mermaid) == "" {
-			return nil, nil, errors.New("mermaid is required")
+		hasMermaid := strings.TrimSpace(in.Mermaid) != ""
+		if (len(in.Elements) > 0) == hasMermaid {
+			return nil, nil, errors.New("pass exactly one of elements or mermaid")
 		}
-		// The client converts "mermaid" into elements on first open and drops the field.
+		// The client converts "skeleton" or "mermaid" into elements on first open, saves, and drops the field.
 		scene := map[string]any{
 			"type":     "stitchdraw",
 			"version":  2,
@@ -316,7 +362,11 @@ func NewServer() *mcp.Server {
 			"elements": []any{},
 			"appState": map[string]any{"gridSize": 20, "viewBackgroundColor": "#ffffff"},
 			"files":    map[string]any{},
-			"mermaid":  in.Mermaid,
+		}
+		if hasMermaid {
+			scene["mermaid"] = in.Mermaid
+		} else {
+			scene["skeleton"] = in.Elements
 		}
 		data, err := call("POST", "/api/diagrams", map[string]any{"repo": r.Owner + "/" + r.Name, "name": in.Name, "scene": scene})
 		if err != nil {
