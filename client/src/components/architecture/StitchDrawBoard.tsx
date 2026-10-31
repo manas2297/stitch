@@ -3,6 +3,7 @@ import {
   Excalidraw,
   MainMenu,
   WelcomeScreen,
+  FONT_FAMILY,
   convertToExcalidrawElements,
   hashElementsVersion,
   restore,
@@ -25,6 +26,27 @@ import { downloadSceneFile, toLibraryFile, toSceneFile } from './stitchdraw';
 (window as any).EXCALIDRAW_ASSET_PATH = new URL('/', window.location.href).href;
 
 const SAVE_DELAY = 800;
+
+const FONT_NAMES: Record<number, string> = Object.fromEntries(
+  Object.entries(FONT_FAMILY).map(([name, id]) => [id, name]),
+);
+
+// convertToExcalidrawElements measures text straight away; a font that has not loaded yet is
+// measured with its narrower fallback, and the text then renders clipped. Load the fonts first.
+async function loadSkeletonFonts(skeleton: any[]) {
+  const textByFamily = new Map<number, string>();
+  for (const el of skeleton) {
+    const text = el.label?.text ?? (el.type === 'text' ? el.text : '');
+    if (!text) continue;
+    const family = el.label?.fontFamily ?? el.fontFamily ?? FONT_FAMILY.Excalifont;
+    textByFamily.set(family, (textByFamily.get(family) ?? '') + text);
+  }
+  await Promise.all(
+    [...textByFamily].map(([family, text]) =>
+      FONT_NAMES[family] ? document.fonts.load(`16px ${FONT_NAMES[family]}`, text).catch(() => []) : null,
+    ),
+  );
+}
 
 export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
 
@@ -144,6 +166,8 @@ export default function StitchDrawBoard({
           if (parsed.files) api.addFiles(Object.values(parsed.files));
           elements = parsed.elements;
         }
+        await loadSkeletonFonts(elements);
+        if (cancelled) return;
         api.updateScene({ elements: convertToExcalidrawElements(elements) });
         api.scrollToContent(undefined, { fitToContent: true });
         latest.current = { elements: api.getSceneElements(), appState: api.getAppState(), files: api.getFiles() };
