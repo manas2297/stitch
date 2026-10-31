@@ -183,6 +183,48 @@ Output: **`backend/build/bin/Stitch.app`** on macOS (`Stitch.exe` on Windows).
 npm test   # go test ./... in backend/
 ```
 
+### MCP server (Claude Desktop / Claude Code)
+
+The built binary doubles as an MCP server: `Stitch mcp` serves tools over stdio instead of opening the window. It works on the same `~/.stitch` data as the app, and the app picks up changes when its window regains focus.
+
+| Tool | What it does |
+| --- | --- |
+| `get_focus`, `set_focus` | Read or change the focus project |
+| `list_repos` | List tracked repositories |
+| `list_tasks`, `create_tasks`, `update_task` | Read and edit the Focus planner board |
+| `create_page` | Add a notes page (HTML or plain text) |
+| `create_diagram` | Add an Architecture drawing from laid-out shapes and arrows (or Mermaid as a fallback); it becomes editable shapes when first opened |
+
+Tools that take an optional `repo` (`owner/name` or local path) default to the focus project.
+
+Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "/path/to/stitch/backend/build/bin/Stitch.app/Contents/MacOS/Stitch",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Claude Code (`.mcp.json` in a project, or `claude mcp add stitch -- /path/to/Stitch mcp`):
+
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "/path/to/stitch/backend/build/bin/Stitch.app/Contents/MacOS/Stitch",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+On Windows, point `command` at `Stitch.exe`.
+
 ---
 
 ## Tech Stack
