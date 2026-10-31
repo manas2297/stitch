@@ -87,6 +87,13 @@ export function usePlanner(project: string) {
     load().then((b) => b && migrate(b));
   }, [load, migrate]);
 
+  // Refetch when the window regains focus, so edits made elsewhere (e.g. by Claude over MCP) show up.
+  useEffect(() => {
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [load]);
+
   const optimistic = async <T,>(apply: (b: Board) => Board, request: () => Promise<T>, settle?: (b: Board, result: T) => Board) => {
     const before = boardRef.current;
     if (before) setBoard(apply(before));

@@ -124,6 +124,13 @@ export default function Architecture() {
     };
   }, [repo, refresh]);
 
+  // Refetch the list when the window regains focus, so drawings created over MCP show up.
+  useEffect(() => {
+    const onFocus = () => refresh(repo).catch(() => {});
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [repo, refresh]);
+
   useEffect(() => {
     writePrefs(repo, active);
     if (!active) return;

@@ -3,6 +3,7 @@ import {
   Excalidraw,
   MainMenu,
   WelcomeScreen,
+  convertToExcalidrawElements,
   hashElementsVersion,
   restore,
   serializeAsJSON,
@@ -16,6 +17,7 @@ import '@excalidraw/excalidraw/index.css';
 import { Check, CloudOff, Download, FileUp, Loader2 } from 'lucide-react';
 
 import { useTheme } from '@/lib/theme';
+import { useToast } from '../Toast';
 import { loadLibrary, saveDrawing, saveLibrary } from './api';
 import { downloadSceneFile, toLibraryFile, toSceneFile } from './stitchdraw';
 
@@ -122,6 +124,33 @@ export default function StitchDrawBoard({
 
   const persistRef = useRef(persist);
   persistRef.current = persist;
+
+  // A drawing created over MCP holds Mermaid source and no elements. Convert it once and save
+  // straight away; the saved scene has no "mermaid" field, so it is never converted again.
+  const toast = useToast();
+  useEffect(() => {
+    const source = scene?.mermaid;
+    if (!api || typeof source !== 'string' || scene.elements?.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // Mermaid is large; load it only for drawings that need converting.
+        const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
+        const { elements, files } = await parseMermaidToExcalidraw(source);
+        if (cancelled) return;
+        if (files) api.addFiles(Object.values(files));
+        api.updateScene({ elements: convertToExcalidrawElements(elements) });
+        api.scrollToContent(undefined, { fitToContent: true });
+        latest.current = { elements: api.getSceneElements(), appState: api.getAppState(), files: api.getFiles() };
+        await persistRef.current();
+      } catch (e) {
+        if (!cancelled) toast(`Could not convert the Mermaid diagram: ${e.message}`, 'error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, scene, toast]);
 
   // Flush on unmount (switching drawing/scope or leaving the tab).
   useEffect(
