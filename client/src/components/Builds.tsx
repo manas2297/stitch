@@ -3,6 +3,7 @@ import { Play, Square } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { runBuild } from '@/lib/desktop';
 import useAppStore from '../store/useAppStore';
 import PageHeader from './layout/PageHeader';
 import { useToast } from './Toast';
@@ -18,7 +19,7 @@ export default function Builds() {
   const [output, setOutput] = useState('Console is idle. Select a repository and task to run.');
   const [status, setStatus] = useState('Terminal Offline');
   const [running, setRunning] = useState(false);
-  const esRef = useRef<EventSource | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
 
   const handleRepoChange = (path: string) => {
     setSelectedPath(path);
@@ -30,8 +31,8 @@ export default function Builds() {
 
   const runTask = () => {
     if (running) {
-      esRef.current?.close();
-      esRef.current = null;
+      stopRef.current?.();
+      stopRef.current = null;
       setRunning(false);
       setStatus('Task Aborted');
       setOutput((prev) => prev + '\n\n[SYSTEM] Task execution terminated by user.\n');
@@ -46,29 +47,15 @@ export default function Builds() {
     setStatus('Running…');
     setRunning(true);
 
-    const es = new EventSource(
-      `/api/build/run?path=${encodeURIComponent(selectedPath)}&script=${encodeURIComponent(selectedScript)}`,
-    );
-    esRef.current = es;
-
-    es.onmessage = (event) => {
-      const d = JSON.parse(event.data);
+    stopRef.current = runBuild(selectedPath, selectedScript, (d) => {
       if (d.log) setOutput((prev) => prev + d.log);
       if (d.done) {
-        es.close();
-        esRef.current = null;
+        stopRef.current = null;
         setRunning(false);
         setStatus(`Finished (Code: ${d.exitCode})`);
         setOutput((prev) => prev + `\n\n[SYSTEM] Build process exited with code ${d.exitCode}\n`);
       }
-    };
-    es.onerror = () => {
-      es.close();
-      esRef.current = null;
-      setRunning(false);
-      setStatus('Connection Error');
-      setOutput((prev) => prev + '\n[SYSTEM ERROR] Connection to server lost.\n');
-    };
+    });
   };
 
   return (

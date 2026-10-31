@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  apiUrl,
   extractActionItems,
   formatRange,
   fromInputDateTime,
@@ -18,6 +17,7 @@ import {
   type Meeting,
   type Task,
 } from '@/lib/planner';
+import { saveDownload } from '@/lib/desktop';
 import type { Planner } from '@/lib/usePlanner';
 import { confirmDialog } from '../../helper/confirm';
 import { useToast } from '../Toast';
@@ -195,10 +195,15 @@ export default function MeetingDialog({
                 </Button>
               )}
               {existing && (
-                <Button type="button" size="sm" variant="outline" asChild>
-                  <a href={apiUrl(`/api/focus/meetings/${existing.id}/ics`)} download target="_blank" rel="noreferrer">
-                    <Download /> .ics
-                  </a>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    saveDownload(`/api/focus/meetings/${existing.id}/ics`, 'meeting.ics').catch((err) => toast(err.message, 'error'))
+                  }
+                >
+                  <Download /> .ics
                 </Button>
               )}
             </div>

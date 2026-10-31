@@ -78,7 +78,7 @@ export default function TopBar({ tabs, onOpenMobileNav }) {
             className="focus-visible:ring-ring/50 flex shrink-0 items-center gap-2 rounded-md px-1 outline-none focus-visible:ring-[3px]"
             aria-label="Stitch — go to Overview"
           >
-            <span className="from-primary to-brand-accent size-3 rounded-full bg-gradient-to-br shadow-[0_0_12px_color-mix(in_oklab,var(--primary)_45%,transparent)]" />
+            <img src="/logo.png" alt="" className="size-7 shrink-0" />
             <span className="text-lg font-bold tracking-tight">Stitch</span>
           </button>
           {tab && (

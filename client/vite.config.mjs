@@ -35,8 +35,22 @@ function excalidrawFontsPlugin() {
   };
 }
 
+// Under `wails dev`, Wails asks Vite for every GET first and only falls back to the Go
+// handlers on a 404, so /api must 404 here rather than get Vite's index.html fallback.
+function apiPassthroughPlugin() {
+  return {
+    name: 'api-passthrough',
+    configureServer(server) {
+      server.middlewares.use('/api', (_req, res) => {
+        res.statusCode = 404;
+        res.end();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), excalidrawFontsPlugin()],
+  plugins: [react(), tailwindcss(), excalidrawFontsPlugin(), apiPassthroughPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -49,12 +63,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:4000',
-        changeOrigin: true,
-      },
-    },
   },
 
 });

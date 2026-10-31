@@ -4,6 +4,7 @@ import { Bot, GitBranch, GitPullRequest, Lightbulb, Play } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { runBuild } from "@/lib/desktop";
 import FocusCard from "./FocusCard";
 
 /** GitHub features and PRs, local git state, build audit and file explorer for the focused repo. */
@@ -58,26 +59,13 @@ export default function RepoContext({ data }: { data: any }) {
         ? "build"
         : "";
 
-    const isDesktop = (window as any).go !== undefined || import.meta.env.PROD;
-    const baseUrl = isDesktop ? "http://127.0.0.1:4000" : "";
-
-    const es = new EventSource(
-      `${baseUrl}/api/build/run?path=${encodeURIComponent(data.repo.path)}&script=${encodeURIComponent(script)}`,
-    );
-    es.onmessage = (ev) => {
-      const d = JSON.parse(ev.data);
+    runBuild(data.repo.path, script, (d) => {
       if (d.log) setBotOutput((prev) => prev + d.log);
       if (d.done) {
-        es.close();
         setBotRunning(false);
         setBotOutput((prev) => prev + `\n[SYSTEM] Exit code ${d.exitCode}\n`);
       }
-    };
-    es.onerror = () => {
-      es.close();
-      setBotRunning(false);
-      setBotOutput((prev) => prev + "\n[ERROR] Connection failed.\n");
-    };
+    });
   };
 
   // /api/focus/info reports `type: true` for local repositories.

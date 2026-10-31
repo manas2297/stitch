@@ -59,9 +59,10 @@ To get the codebase running locally for development:
    npm install
    ```
 
-3. **Configure Environment**
+3. **Install Wails** (the version pinned in `backend/go.mod`)
    ```bash
-   cp config.example.json config.json
+   go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
+   wails doctor
    ```
 
 4. **Verify GitHub CLI Setup**
@@ -74,7 +75,7 @@ To get the codebase running locally for development:
    ```bash
    npm run dev
    ```
-   Open `http://localhost:5173` to interact with the frontend.
+   This opens the Stitch desktop window with hot reload. Your data is stored in `~/.stitch`.
 
 ---
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"stitch/internal/config"
 	"stitch/internal/models"
 )
 
@@ -63,8 +64,7 @@ func GetIdeasDirPath(repo *models.Repo, owner, name string) string {
 	if repo.Path != "" {
 		dirPath = filepath.Join(repo.Path, "ideas")
 	} else {
-		homedir, _ := os.UserHomeDir()
-		dirPath = filepath.Join(homedir, ".stitch", "ideas", owner+"-"+name)
+		dirPath = filepath.Join(config.DataDir(), "ideas", owner+"-"+name)
 	}
 	os.MkdirAll(dirPath, 0755)
 	return dirPath

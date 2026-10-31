@@ -215,15 +215,7 @@ export function extractActionItems(notes: string) {
 
 export const isUrl = (s: string) => /^https?:\/\//i.test(s.trim());
 
-/** Absolute API URL for links the browser or desktop shell opens directly. */
-export function apiUrl(path: string) {
-  const isDesktop = (window as any).go !== undefined || import.meta.env.PROD;
-  return `${isDesktop ? 'http://127.0.0.1:4000' : window.location.origin}${path}`;
-}
-
-/** Open a URL in the system browser (desktop) or a new tab (web). */
+/** Open a URL in the system browser. */
 export function openExternal(url: string) {
-  const app = (window as any).go?.desktop?.App;
-  if (app?.OpenURL) app.OpenURL(url);
-  else window.open(url, '_blank', 'noopener');
+  window.go?.desktop?.App?.OpenURL(url);
 }
