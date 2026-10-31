@@ -10,9 +10,19 @@ import (
 )
 
 var (
-	mutex sync.RWMutex
-	file  = "config.json"
+	mutex    sync.RWMutex
+	file     string
+	fileOnce sync.Once
 )
+
+func configFile() string {
+	fileOnce.Do(func() {
+		if file == "" {
+			file = DataFile("config.json")
+		}
+	})
+	return file
+}
 
 // Read loads the workspace config from disk.
 func Read() models.Config {
@@ -20,12 +30,12 @@ func Read() models.Config {
 	defer mutex.RUnlock()
 
 	var cfg models.Config
-	if _, err := os.Stat(file); os.IsNotExist(err) {
+	if _, err := os.Stat(configFile()); os.IsNotExist(err) {
 		cfg.Repos = []models.Repo{}
 		return cfg
 	}
 
-	data, err := os.ReadFile(file)
+	data, err := os.ReadFile(configFile())
 	if err != nil {
 		fmt.Printf("Error reading config: %v\n", err)
 		return models.Config{Repos: []models.Repo{}}
@@ -53,7 +63,7 @@ func Write(cfg models.Config) bool {
 		return false
 	}
 
-	if err := os.WriteFile(file, data, 0600); err != nil {
+	if err := os.WriteFile(configFile(), data, 0600); err != nil {
 		fmt.Printf("Error writing config: %v\n", err)
 		return false
 	}

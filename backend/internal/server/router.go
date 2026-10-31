@@ -2,11 +2,7 @@ package server
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"stitch/internal/server/build"
 	"stitch/internal/server/contributions"
 	"stitch/internal/server/diagrams"
 	"stitch/internal/server/focus"
@@ -21,6 +17,8 @@ import (
 	"stitch/internal/server/roadmap"
 )
 
+// Routes returns the /api handlers. The desktop webview calls them in-process via
+// the Wails asset server; static assets are served by Wails from the embedded dist/.
 func Routes() http.Handler {
 	mux := http.NewServeMux()
 
@@ -79,9 +77,6 @@ func Routes() http.Handler {
 	mux.HandleFunc("GET /api/prs", contributions.HandleGetPrs)
 	mux.HandleFunc("GET /api/issues", contributions.HandleGetIssues)
 
-	// 5. Builds & Tasks (SSE)
-	mux.HandleFunc("GET /api/build/run", build.HandleBuildRun)
-
 	// 6. Contributions (GitHub and Local Commits)
 	mux.HandleFunc("GET /api/contributions", contributions.HandleGetGitHubContributions)
 	mux.HandleFunc("GET /api/contributions/local", contributions.HandleGetLocalContributions)
@@ -109,45 +104,5 @@ func Routes() http.Handler {
 	mux.HandleFunc("GET /api/diagrams/library", diagrams.HandleGetLibrary)
 	mux.HandleFunc("PUT /api/diagrams/library", diagrams.HandleSaveLibrary)
 
-	// Static client file hosting (Vite build target)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Serve index.html if file doesn't exist
-		path := filepath.Join("dist", r.URL.Path)
-		if fi, err := os.Stat(path); err != nil || fi.IsDir() {
-			http.ServeFile(w, r, filepath.Join("dist", "index.html"))
-			return
-		}
-		http.FileServer(http.Dir("dist")).ServeHTTP(w, r)
-	})
-
-	// Global CORS and OPTIONS handler middleware
-	globalCORS := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		// Allow only loopback origins (dev Vite client and desktop WebView)
-		allowedOrigins := map[string]bool{
-			"http://localhost:5173":  true,
-			"http://127.0.0.1:5173":  true,
-			"http://localhost:4000":  true,
-			"http://127.0.0.1:4000":  true,
-			"http://localhost:34115": true, // wails dev webview
-			"http://127.0.0.1:34115": true,
-			"wails://wails":          true, // wails production webview (macOS/Linux)
-			"http://wails.localhost": true, // wails production webview (Windows)
-		}
-		if allowedOrigins[origin] || strings.HasPrefix(origin, "wails://") {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		mux.ServeHTTP(w, r)
-	})
-
-	return globalCORS
+	return mux
 }

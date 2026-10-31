@@ -10,12 +10,24 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"stitch/internal/config"
 )
 
 var (
-	mu   sync.Mutex
-	file = "focus.json"
+	mu       sync.Mutex
+	file     string
+	fileOnce sync.Once
 )
+
+func dbFile() string {
+	fileOnce.Do(func() {
+		if file == "" {
+			file = config.DataFile("focus.json")
+		}
+	})
+	return file
+}
 
 var (
 	Statuses   = []string{"backlog", "todo", "in-progress", "review", "blocked", "done"}
@@ -106,7 +118,7 @@ func now() string { return time.Now().Format(time.RFC3339) }
 
 func readDB() DB {
 	var db DB
-	if data, err := os.ReadFile(file); err == nil {
+	if data, err := os.ReadFile(dbFile()); err == nil {
 		if err := json.Unmarshal(data, &db); err != nil {
 			fmt.Printf("planner: parse error, starting empty: %v\n", err)
 			db = DB{}
@@ -152,11 +164,11 @@ func writeDB(db DB) error {
 	if err != nil {
 		return err
 	}
-	tmp := file + ".tmp"
+	tmp := dbFile() + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, file)
+	return os.Rename(tmp, dbFile())
 }
 
 func contains(list []string, v string) bool {

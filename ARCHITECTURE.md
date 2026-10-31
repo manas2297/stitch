@@ -6,15 +6,14 @@ This document explains how Stitch is organized, how the frontend and backend con
 
 ## High-level overview
 
-Stitch is a **Go backend** + **React frontend** app. The backend wraps the GitHub CLI (`gh`) and local `git` commands via a thin shell executor. The frontend is a Vite + React 19 SPA that talks to the backend over HTTP using a central `apiFetch` helper.
+Stitch is a **desktop app** (macOS and Windows) built with [Wails v2](https://wails.io/): a **Go backend** and a **React frontend** in one binary. The backend wraps the GitHub CLI (`gh`) and local `git` commands via a thin shell executor. The frontend is a Vite + React 19 SPA running in the system webview.
 
-Stitch runs in three modes:
+There is no separate web server. Wails serves the UI from `backend/dist/` (embedded with `//go:embed`) and passes every `/api/*` request from the webview straight to `server.Routes()` in the same process, so no TCP port is opened.
 
 | Mode | How to start | What runs |
 |------|-------------|-----------|
-| **Web dev** | `npm run dev` | Air hot-reloads Go on `:4000` (`--server`); Vite serves React on `:5173` with `/api` proxied to Go |
-| **Web production** | `npm run build && npm start` | Single Go binary serves REST API + static files from `backend/dist/` |
-| **Desktop (Wails)** | `wails dev` / `wails build` | Native window + embedded `backend/dist/` assets; Go API still runs on `:4000` in the background |
+| **Dev** | `npm run dev` (`wails dev`) | Native window; Wails proxies UI requests to Vite for HMR and `/api/*` to Go, rebuilding Go on change |
+| **Build** | `npm run build` (`wails build`) | `backend/build/bin/Stitch.app` (macOS) or `Stitch.exe` (Windows) |
 
 ```mermaid
 flowchart LR
@@ -27,17 +26,14 @@ flowchart LR
   subgraph backend [Backend - Go]
     Router[backend/internal/server/router.go]
     Handlers[backend/internal/server/*/*/handler.go]
-    Config[config.json]
+    Config[~/.stitch/config.json]
     Router --> Handlers
     Handlers --> Config
     Handlers --> Shell[backend/internal/shell/shell.go]
     Shell --> GH[gh CLI / git]
   end
 
-  subgraph desktop [Desktop only]
-    Wails[backend/internal/desktop/app.go]
-    Wails --> Router
-  end
+  Wails[backend/internal/desktop/app.go]
 
   Store -->|apiFetch /api/*| Router
   UI -->|window.go.desktop.App| Wails
@@ -50,19 +46,19 @@ flowchart LR
 ```
 stitch/
 ├── backend/                        # ── BACKEND ──
-│   ├── main.go                     # Entrypoint: parses --server / --desktop flags
+│   ├── main.go                     # Entrypoint: starts the Wails desktop app
 │   ├── wails.json                  # Wails desktop packaging config
-│   ├── .air.toml                   # Air hot-reload config for dev
 │   ├── go.mod / go.sum             # Go dependencies
 │   ├── dist/                       # Vite build output (embedded into desktop app)
 │   └── internal/
-│       ├── config/                 # config.json I/O (read/write tracked repos)
+│       ├── config/                 # config.json I/O + DataDir() (~/.stitch, where all user data lives)
+│       ├── build/                  # Build/lint runner; output streamed to the UI as Wails events
+│       ├── desktop/                # Wails bootstrap (desktop.go) + JS bindings (app.go)
 │       ├── models/                 # Shared struct types: Repo, Config
 │       ├── shell/                  # exec.Command wrapper (RunCmd) + GetRepoInfoFromGit
 │       ├── plans/                  # Plans domain logic
-│       └── server/                 # REST API
+│       └── server/                 # /api handlers, served in-process to the webview
 │           ├── router.go           # All route registrations in one place
-│           ├── server.go           # HTTP server bootstrap
 │           ├── repos/              # GET/POST/DELETE repos, toggle-major, set-focus, tab-energies
 │           ├── contributions/      # PRs, issues, GitHub contribution graph, local commits
 │           ├── focus/              # Focus repo info + file/directory contents (via gh)
@@ -70,7 +66,6 @@ stitch/
 │           ├── plans/              # Plans CRUD + promote-to-issue
 │           ├── releases/           # Tag listing + release creation
 │           ├── roadmap/            # Remote roadmap issue sync
-│           ├── build/              # SSE streaming build/lint runner
 │           ├── monitor/            # AI provider disk usage scanner + media cleanup
 │           ├── profile/            # Git config read/write + environment checks
 │           └── helpers/            # Shared handler utilities
@@ -111,10 +106,7 @@ stitch/
 │               ├── EmptyState.tsx          # Standardized empty states
 │               └── StatCard.tsx            # Metric & KPI statistics cards
 │
-├── config.json                     # Local repos database (gitignored)
-├── config.example.json             # Template to bootstrap config.json
-├── build/                          # Wails Stitch.app build output (gitignored)
-└── stitch-backend                  # Compiled Go binary from npm run build:server (gitignored)
+└── backend/build/bin/               # Wails build output: Stitch.app / Stitch.exe (gitignored)
 ```
 
 ---
@@ -144,10 +136,9 @@ Tabs have an `energy` field (`'low'`, `'medium'`, `'high'`, or `'all'`). `App.js
 
 ### Calling the backend
 
-Always use **`apiFetch`** from `useAppStore.ts` for REST calls. It picks the correct base URL automatically:
+Always use **`apiFetch`** from `useAppStore.ts` for REST calls. URLs are relative (`/api/...`); the Wails asset server hands them to the Go router in-process.
 
-- **Browser dev** (`npm run dev`): relative `/api/...` → Vite proxy → `http://127.0.0.1:4000`
-- **Desktop / production**: absolute `http://127.0.0.1:4000/api/...`
+The webview can't stream HTTP responses on Windows, so anything streamed (build output) goes through a Go binding plus Wails events instead: see `runBuild` in `client/src/lib/desktop.ts`. File downloads use `saveDownload`, which shows the native Save dialog.
 
 ```ts
 import { apiFetch } from '../store/useAppStore';
@@ -209,7 +200,6 @@ All Go logic lives inside `backend/`. Each feature area is a sub-package under `
 | GET | `/api/recents` | Recent contributions |
 | GET | `/api/contributions` | GitHub contribution graph data |
 | GET | `/api/contributions/local` | Local git commit history |
-| GET | `/api/build/run` | SSE stream: run a build/lint script |
 | GET | `/api/profile` | Read Git config + env runtime versions |
 | POST | `/api/profile/git` | Write Git config |
 | GET | `/api/provider/{provider}/disk` | AI provider disk usage |
@@ -229,5 +219,4 @@ All Go logic lives inside `backend/`. Each feature area is a sub-package under `
 | [Zustand 5](https://zustand.docs.pmnd.rs/) | Frontend global state |
 | [@xyflow/react](https://reactflow.dev/) | Interactive architecture diagram canvas |
 | [Wails v2](https://wails.io/) | Standalone desktop application packaging |
-| [Air](https://github.com/air-verse/air) | Go hot reload in dev (via `npm run dev:server`) |
 | [Vite](https://vitejs.dev/) | Frontend bundler with HMR |

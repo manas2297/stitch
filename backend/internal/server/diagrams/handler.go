@@ -31,11 +31,7 @@ const (
 var validName = regexp.MustCompile(`^[\p{L}\p{N}_][\p{L}\p{N}_ .()\-]{0,99}$`)
 
 func stitchDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".stitch", "diagrams"), nil
+	return filepath.Join(config.DataDir(), "diagrams"), nil
 }
 
 // scopeDir resolves the directory for a scope ("" = personal, otherwise "owner/name" of a tracked repo).

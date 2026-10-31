@@ -2,7 +2,6 @@ package desktop
 
 import (
 	"io/fs"
-	"net/http"
 
 	"stitch/internal/server"
 
@@ -14,16 +13,6 @@ import (
 
 // Run starts the Wails desktop application with embedded frontend assets.
 func Run(assets fs.FS) {
-	go func() {
-		srv := &http.Server{
-			Addr:    ":4000",
-			Handler: server.Routes(),
-		}
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			println("Server error:", err.Error())
-		}
-	}()
-
 	app := NewApp()
 
 	err := wails.Run(&options.App{
@@ -31,8 +20,11 @@ func Run(assets fs.FS) {
 		Width:         1280,
 		Height:        800,
 		DisableResize: false,
+		// The webview serves the UI from assets and sends /api/* to the Go handlers
+		// in-process, so no network port is opened.
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			Assets:  assets,
+			Handler: server.Routes(),
 		},
 		BackgroundColour: &options.RGBA{R: 9, G: 10, B: 16, A: 255},
 		OnStartup:        app.Startup,

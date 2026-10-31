@@ -2,12 +2,8 @@ import { create } from 'zustand';
 
 import { isGitHubSlug } from '@/lib/focus';
 
-// Smart wrapper targeting the background server port in Desktop/Production modes
-export const apiFetch = (url, options = {}) => {
-  const isDesktop = window.go !== undefined || import.meta.env.PROD;
-  const baseUrl = isDesktop ? 'http://127.0.0.1:4000' : '';
-  return fetch(`${baseUrl}${url}`, options);
-};
+// The desktop webview routes /api/* straight to the Go handlers (see backend/internal/desktop).
+export const apiFetch = (url, options = {}) => fetch(url, options);
 
 interface AppState {
   [key: string]: any;

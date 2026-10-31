@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import useAppStore from '../../store/useAppStore';
 import Icon from '../Icon';
 import { isFocusRepo, repoFocusValue } from '@/lib/focus';
+import { openExternal } from '@/lib/planner';
 
 export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
 export const MOD_KEY = isMac ? '⌘' : 'Ctrl';
@@ -84,12 +85,7 @@ export default function CommandPalette({ open, onOpenChange, tabs }) {
         alt: r.owner
           ? {
               label: 'Open on GitHub',
-              run: () => {
-                const href = `https://github.com/${r.owner}/${r.name}`;
-                const appBinding = (window as any).go?.desktop?.App;
-                if (appBinding) appBinding.OpenURL(href);
-                else window.open(href, '_blank', 'noopener');
-              },
+              run: () => openExternal(`https://github.com/${r.owner}/${r.name}`),
             }
           : undefined,
       };

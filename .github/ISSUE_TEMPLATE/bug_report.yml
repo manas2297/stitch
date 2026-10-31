@@ -43,9 +43,9 @@ body:
       label: Run mode
       description: How were you running Stitch when the bug occurred?
       options:
-        - Web dev (npm run dev)
-        - Desktop (wails dev / Stitch.app)
-        - Web production
+        - Dev mode (npm run dev)
+        - Built app (Stitch.app on macOS)
+        - Built app (Stitch.exe on Windows)
     validations:
       required: true
 

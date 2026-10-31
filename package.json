@@ -1,16 +1,14 @@
 {
   "name": "stitch-github-manager",
   "version": "1.0.0",
-  "description": "Local GitHub and repo manager sorted by energy levels",
+  "description": "Desktop GitHub and repo manager sorted by energy levels",
   "main": "main.go",
   "scripts": {
-    "dev:server": "cd backend && mkdir -p dist && touch dist/.gitkeep && go run github.com/air-verse/air@latest -c .air.toml",
+    "dev": "cd backend && mkdir -p dist && touch dist/.gitkeep && wails dev",
     "dev:client": "vite --config client/vite.config.mjs",
-    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "cd backend && mkdir -p dist && touch dist/.gitkeep && wails build",
     "build:client": "vite build --config client/vite.config.mjs",
-    "build:server": "cd backend && mkdir -p dist && touch dist/.gitkeep && go build -o ../stitch-backend .",
-    "build": "npm run build:client && npm run build:server",
-    "start": "./stitch-backend"
+    "test": "cd backend && mkdir -p dist && touch dist/.gitkeep && go test ./..."
   },
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
@@ -28,8 +26,6 @@
     "@tiptap/starter-kit": "3.31.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cors": "^2.8.5",
-    "express": "^4.19.2",
     "highlight.js": "11.11.1",
     "lowlight": "3.3.0",
     "lucide-react": "^1.49.0",
@@ -47,12 +43,10 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^4.7.0",
-    "concurrently": "^9.2.3",
-    "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
     "vite": "^6.4.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }

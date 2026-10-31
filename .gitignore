@@ -10,9 +10,11 @@ focus.json*
 # Vite production build output (embedded by Go via //go:embed)
 dist/
 
-# Wails desktop bundle output
+# Wails desktop bundle output (the app icon and its source are tracked)
 /build/
-/backend/build/
+/backend/build/*
+!/backend/build/appicon.png
+!/backend/build/icon-src/
 /wailsjs/
 package.json.md5
 

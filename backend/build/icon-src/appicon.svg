@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Stitch app icon. Source for appicon.png; re-render with ./render.sh. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#242840"/>
+      <stop offset="1" stop-color="#0a0b13"/>
+    </linearGradient>
+    <radialGradient id="tint" cx="512" cy="120" r="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="thread" x1="700" y1="260" x2="320" y2="770" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <!-- 1224 units long; 9 stitches of 42 + 8 gaps of 105.8 land a stitch on both ends. -->
+    <path id="s" d="M 676 318 C 630 252 420 236 372 330 C 326 420 430 468 512 500 C 596 532 700 580 660 690 C 616 792 404 784 348 704" fill="none" stroke-linecap="round"/>
+  </defs>
+
+  <!-- Body on Apple's 1024 grid: 824px rounded square with a 100px margin for the shadow. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tint)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="3"/>
+
+  <!-- The S: a faint seam, a soft glow, then the running stitch on top. -->
+  <use xlink:href="#s" stroke="#ffffff" stroke-opacity="0.07" stroke-width="64"/>
+  <use xlink:href="#s" stroke="url(#thread)" stroke-opacity="0.7" stroke-width="56" filter="url(#glow)"/>
+  <use xlink:href="#s" stroke="url(#thread)" stroke-width="48" stroke-dasharray="42 105.8"/>
+</svg>

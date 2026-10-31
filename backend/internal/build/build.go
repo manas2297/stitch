@@ -1,29 +1,27 @@
+// Package build runs npm build/lint scripts inside tracked repos and streams their output.
 package build
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	"stitch/internal/config"
-	"stitch/internal/server/helpers"
 )
 
-func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
-	repoPath := r.URL.Query().Get("path")
-	script := r.URL.Query().Get("script")
+// Prepare validates a build request and returns the repo directory and npm command to run.
+func Prepare(repoPath, script string) (string, string, error) {
 	if repoPath == "" {
-		http.Error(w, `{"error":"Repository path is required."}`, http.StatusBadRequest)
-		return
+		return "", "", errors.New("Repository path is required.")
 	}
 
 	absPath, _ := filepath.Abs(repoPath)
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		http.Error(w, `{"error":"Repository path does not exist."}`, http.StatusNotFound)
-		return
+		return "", "", errors.New("Repository path does not exist.")
 	}
 
 	// Security: only allow running builds inside tracked repos.
@@ -39,16 +37,14 @@ func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !allowed {
-		helpers.WriteJSONError(w, "Path is not a tracked repository in your workspace.", http.StatusForbidden)
-		return
+		return "", "", errors.New("Path is not a tracked repository in your workspace.")
 	}
 
 	// Security: restrict script name to word characters only (no shell metacharacters).
 	for _, ch := range script {
 		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
 			(ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == ':') {
-			helpers.WriteJSONError(w, "Invalid script name.", http.StatusBadRequest)
-			return
+			return "", "", errors.New("Invalid script name.")
 		}
 	}
 
@@ -56,71 +52,51 @@ func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
 	if script != "" {
 		command = fmt.Sprintf("npm run %s", script)
 	}
+	return absPath, command, nil
+}
 
-	// Prepare SSE response headers
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Transfer-Encoding", "chunked")
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-
-	sendLog := func(log string) {
-		payload, _ := json.Marshal(map[string]string{"log": log})
-		fmt.Fprintf(w, "data: %s\n\n", payload)
-		flusher.Flush()
-	}
-
-	sendLog(fmt.Sprintf("Starting build task: %s in %s\n", command, absPath))
+// Run executes command in dir, passing output chunks to sendLog as they arrive, and returns the exit code.
+func Run(dir, command string, sendLog func(string)) int {
+	sendLog(fmt.Sprintf("Starting build task: %s in %s\n", command, dir))
 
 	cmd := exec.Command("sh", "-c", command)
-	cmd.Dir = absPath
+	cmd.Dir = dir
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		sendLog(fmt.Sprintf("[ERROR] Failed to obtain stdout: %v\n", err))
-		return
+		return 1
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		sendLog(fmt.Sprintf("[ERROR] Failed to obtain stderr: %v\n", err))
-		return
+		return 1
 	}
 
 	if err := cmd.Start(); err != nil {
 		sendLog(fmt.Sprintf("[ERROR] Failed to start command: %v\n", err))
-		return
+		return 1
 	}
 
-	go func() {
+	// Both pipes must be drained before Wait, which closes them.
+	var wg sync.WaitGroup
+	pipe := func(r io.Reader) {
+		defer wg.Done()
 		buf := make([]byte, 1024)
 		for {
-			n, err := stdoutPipe.Read(buf)
+			n, err := r.Read(buf)
 			if n > 0 {
 				sendLog(string(buf[:n]))
 			}
 			if err != nil {
-				break
+				return
 			}
 		}
-	}()
-
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := stderrPipe.Read(buf)
-			if n > 0 {
-				sendLog(string(buf[:n]))
-			}
-			if err != nil {
-				break
-			}
-		}
-	}()
+	}
+	wg.Add(2)
+	go pipe(stdoutPipe)
+	go pipe(stderrPipe)
+	wg.Wait()
 
 	err = cmd.Wait()
 	if err != nil {
@@ -128,4 +104,5 @@ func HandleBuildRun(w http.ResponseWriter, r *http.Request) {
 	} else {
 		sendLog("[SUCCESS] Build task completed successfully.\n")
 	}
+	return cmd.ProcessState.ExitCode()
 }
